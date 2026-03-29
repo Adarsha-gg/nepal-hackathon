@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { parseStepsToLines, parseStructuredAdvice } from "@/lib/parse-advice";
+
+function stopSpeech() {
+  if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -11,77 +14,50 @@ interface Message {
 
 type PageId = "home" | "ask" | "crisis";
 
-function StructuredAdviceReply({
-  display,
-  content,
-  language,
+function AssistantReply({
+  text,
   t,
+  listenLabel,
+  stopLabel,
+  isPlaying,
+  onListenToggle,
 }: {
-  display: string;
-  content: string;
-  language: "ne" | "en";
+  text: string;
   t: (en: string, ne: string) => string;
+  listenLabel: string;
+  stopLabel: string;
+  isPlaying: boolean;
+  onListenToggle: () => void;
 }) {
-  const parsed =
-    parseStructuredAdvice(display, language) || parseStructuredAdvice(content, "en");
-  if (!parsed) {
-    return (
-      <div className="resp-understanding">
-        <p style={{ whiteSpace: "pre-wrap" }}>{display}</p>
-      </div>
-    );
-  }
-  const stepLines = parseStepsToLines(parsed.steps);
+  const trimmed = text.trim();
+  const paragraphs = trimmed ? trimmed.split(/\n\n+/) : [trimmed];
   return (
-    <div className="advice-structured">
-      {parsed.gist ? (
-        <div className="advice-gist">
-          <div className="resp-label" style={{ marginBottom: 8 }}>
-            <span className="icon">
-              <svg viewBox="0 0 24 24" style={{ stroke: "var(--indigo)" }}>
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            </span>
-            {t("The gist", "सार")}
-          </div>
-          <div className="resp-understanding advice-body">
-            <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{parsed.gist}</p>
-          </div>
-        </div>
-      ) : null}
-      {parsed.story ? (
-        <div className="advice-story-box">
-          <div className="advice-story-kicker">{t("Someone else's story", "अरू कोहीको कथा")}</div>
-          <div className="advice-story-body" style={{ whiteSpace: "pre-wrap" }}>
-            {parsed.story}
-          </div>
-        </div>
-      ) : null}
-      {stepLines.length > 0 ? (
-        <div className="advice-gist">
-          <div className="resp-label" style={{ marginBottom: 8 }}>
-            <span className="icon">
-              <svg viewBox="0 0 24 24" style={{ stroke: "var(--sage)" }}>
-                <polyline points="9 11 12 14 22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-            </span>
-            {t("Steps to try", "के गर्ने")}
-          </div>
-          <ul className="advice-steps-list">
-            {stepLines.map((line, idx) => (
-              <li key={idx}>{line}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {parsed.daily ? (
-        <div className="advice-daily-box">
-          <div className="advice-daily-kicker">{t("Your daily habit", "दैनिक बानी")}</div>
-          <div className="advice-daily-body">{parsed.daily}</div>
-        </div>
-      ) : null}
-    </div>
+    <>
+      <div className="resp-label">
+        <span className="icon">
+          <svg viewBox="0 0 24 24" style={{ stroke: "var(--indigo)" }}>
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </span>
+        {t("Reply", "जवाफ")}
+      </div>
+      <div className="resp-understanding conversational-reply">
+        {paragraphs.map((p, idx) => (
+          <p key={idx} className="conversational-p">
+            {p}
+          </p>
+        ))}
+      </div>
+      <div className="tts-row">
+        <button type="button" className="tts-btn" onClick={onListenToggle}>
+          <span className="tts-btn-icon" aria-hidden="true">
+            {isPlaying ? "⏹" : "🔊"}
+          </span>
+          {isPlaying ? stopLabel : listenLabel}
+        </button>
+        <span className="tts-hint">{t("Uses your browser voice", "ब्राउजरको आवाज प्रयोग गर्छ")}</span>
+      </div>
+    </>
   );
 }
 
@@ -105,6 +81,13 @@ const TOPIC_SNIPPETS: Record<string, { en: string; ne: string }> = {
 
 const LS_LANG_OK = "mero-bachcha-lang-ok";
 
+type SavedAdviceItem = {
+  id: string;
+  fullText: string;
+  questionPreview: string;
+  savedAt: number;
+};
+
 export default function Home() {
   const [view, setView] = useState<PageId>("home");
   const [language, setLanguage] = useState<"ne" | "en">("ne");
@@ -118,6 +101,10 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeChips, setActiveChips] = useState<Set<string>>(new Set());
   const [saveFlash, setSaveFlash] = useState(false);
+  const [savedAdvice, setSavedAdvice] = useState<SavedAdviceItem[]>([]);
+  /** Avoid hydration mismatch: sidebar uses locale time + client-only layout. */
+  const [sidebarMounted, setSidebarMounted] = useState(false);
+  const [ttsPlayingIndex, setTtsPlayingIndex] = useState<number | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -132,7 +119,17 @@ export default function Home() {
     if (typeof window !== "undefined" && localStorage.getItem(LS_LANG_OK)) {
       setLangOverlay(false);
     }
+    setSidebarMounted(true);
   }, []);
+
+  useEffect(() => {
+    return () => stopSpeech();
+  }, []);
+
+  useEffect(() => {
+    stopSpeech();
+    setTtsPlayingIndex(null);
+  }, [language]);
 
   useEffect(() => {
     if (messages.length && responseRef.current) {
@@ -141,6 +138,42 @@ export default function Home() {
   }, [messages.length]);
 
   const t = useCallback((en: string, ne: string) => (language === "ne" ? ne : en), [language]);
+
+  const toggleReplySpeech = useCallback(
+    (index: number, displayText: string) => {
+      if (typeof window === "undefined" || !window.speechSynthesis) return;
+      if (ttsPlayingIndex === index) {
+        stopSpeech();
+        setTtsPlayingIndex(null);
+        return;
+      }
+      stopSpeech();
+      const u = new SpeechSynthesisUtterance(displayText);
+      u.lang = language === "ne" ? "ne-NP" : "en-US";
+      u.rate = 0.92;
+      const applyVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (language === "ne") {
+          const v = voices.find((vo) => vo.lang.startsWith("ne") || /nepal/i.test(vo.name));
+          if (v) u.voice = v;
+        } else {
+          const v =
+            voices.find((vo) => vo.lang.startsWith("en-US")) ||
+            voices.find((vo) => vo.lang.startsWith("en"));
+          if (v) u.voice = v;
+        }
+      };
+      applyVoice();
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.addEventListener("voiceschanged", applyVoice, { once: true });
+      }
+      u.onend = () => setTtsPlayingIndex(null);
+      u.onerror = () => setTtsPlayingIndex(null);
+      window.speechSynthesis.speak(u);
+      setTtsPlayingIndex(index);
+    },
+    [language, ttsPlayingIndex]
+  );
 
   const fetchAdvice = useCallback(
     async (text: string, historySnapshot: { role: "user" | "assistant"; content: string }[]) => {
@@ -255,6 +288,8 @@ export default function Home() {
   };
 
   const resetAsk = () => {
+    stopSpeech();
+    setTtsPlayingIndex(null);
     setMessages([]);
     setInput("");
     setActiveChips(new Set());
@@ -284,16 +319,40 @@ export default function Home() {
     setLangOverlay(false);
   };
 
-  const copyLatestAdvice = async () => {
-    const last = [...messages].reverse().find((m) => m.role === "assistant");
-    if (!last) return;
+  const saveLatestAdvice = async () => {
+    const lastIdx = messages.length - 1;
+    if (lastIdx < 0 || messages[lastIdx]?.role !== "assistant") return;
+    const last = messages[lastIdx];
+    let questionPreview = "";
+    for (let i = lastIdx - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        const q = messages[i].display.trim();
+        questionPreview = q.length > 90 ? `${q.slice(0, 90)}…` : q;
+        break;
+      }
+    }
+    const fullText = last.display;
+    setSavedAdvice((prev) => {
+      if (prev[0]?.fullText === fullText) return prev;
+      const next: SavedAdviceItem = {
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `save-${Date.now()}`,
+        fullText,
+        questionPreview,
+        savedAt: Date.now(),
+      };
+      return [next, ...prev].slice(0, 12);
+    });
     try {
-      await navigator.clipboard.writeText(last.display);
+      await navigator.clipboard.writeText(fullText);
       setSaveFlash(true);
       setTimeout(() => setSaveFlash(false), 2000);
     } catch {
       /* ignore */
     }
+  };
+
+  const removeSavedItem = (id: string) => {
+    setSavedAdvice((prev) => prev.filter((s) => s.id !== id));
   };
 
   const showPage = (id: PageId) => {
@@ -741,11 +800,13 @@ export default function Home() {
                     </div>
                   ) : (
                     <div key={i} className="resp-section">
-                      <StructuredAdviceReply
-                        display={msg.display}
-                        content={msg.content}
-                        language={language}
+                      <AssistantReply
+                        text={msg.display}
                         t={t}
+                        listenLabel={t("Listen to reply", "जवाफ सुन्नुहोस्")}
+                        stopLabel={t("Stop", "रोक्नुहोस्")}
+                        isPlaying={ttsPlayingIndex === i}
+                        onListenToggle={() => toggleReplySpeech(i, msg.display)}
                       />
                     </div>
                   )
@@ -755,7 +816,7 @@ export default function Home() {
                     <button
                       type="button"
                       className="save-btn"
-                      onClick={copyLatestAdvice}
+                      onClick={saveLatestAdvice}
                       style={saveFlash ? { background: "var(--sage-dark)" } : undefined}
                     >
                       {saveFlash ? "✓ " : ""}
@@ -787,6 +848,64 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {sidebarMounted ? (
+              <aside className="ask-sidebar" aria-label={t("Saved advice", "सुरक्षित सल्लाह")}>
+                <div className="saved-panel">
+                  <div className="saved-panel-title">
+                    {t("Saved advice (demo)", "सुरक्षित सल्लाह (डेमो)")}
+                  </div>
+                  <p className="saved-panel-note">
+                    {t(
+                      "Shown here for the demo only — not stored on a server.",
+                      "डेमोका लागि मात्र यहाँ देखाइन्छ — सर्वरमा बन्दैन।"
+                    )}
+                  </p>
+                  {savedAdvice.length === 0 ? (
+                    <div className="saved-empty">
+                      {t(
+                        "Tap “Save advice” after a reply to list it here.",
+                        "जवाफ पछि “सुरक्षित गर्नुहोस्” थिच्नुहोस्।"
+                      )}
+                    </div>
+                  ) : (
+                    <ul className="saved-list">
+                      {savedAdvice.map((item) => (
+                        <li key={item.id} className="saved-card">
+                          <div className="saved-card-top">
+                            <time className="saved-time" dateTime={new Date(item.savedAt).toISOString()}>
+                              {new Date(item.savedAt).toLocaleTimeString(language === "ne" ? "ne-NP" : "en-GB", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </time>
+                            <button
+                              type="button"
+                              className="saved-remove"
+                              onClick={() => removeSavedItem(item.id)}
+                              aria-label={t("Remove", "हटाउनुहोस्")}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {item.questionPreview ? (
+                            <div className="saved-q">
+                              <span className="saved-q-label">{t("You asked", "तपाईंले सोध्नुभयो")}</span>
+                              {item.questionPreview}
+                            </div>
+                          ) : null}
+                          <div className="saved-body-wrap">
+                            <pre className="saved-body">{item.fullText}</pre>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </aside>
+            ) : (
+              <div className="ask-sidebar ask-sidebar-pending" aria-hidden="true" />
+            )}
           </div>
         </div>
 

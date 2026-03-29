@@ -154,8 +154,29 @@ nav{background:var(--linen);border-bottom:var(--thread-dash);position:sticky;top
 .ph-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:700;color:var(--text);}
 .mero-app.lang-ne .ph-title{font-family:'Noto Sans Devanagari',sans-serif;font-size:22px;font-weight:700;}
 .ph-sub{font-size:13px;color:var(--muted);margin-top:3px;}
-.ask-layout{max-width:640px;margin:0 auto;padding:36px 28px;}
-.ask-main{display:flex;flex-direction:column;gap:16px;}
+.ask-layout{
+  max-width:1080px;margin:0 auto;padding:36px 28px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,300px);gap:28px;align-items:start;
+}
+.ask-main{display:flex;flex-direction:column;gap:16px;min-width:0;}
+.ask-sidebar{position:sticky;top:72px;}
+.ask-sidebar-pending{min-height:280px;border-radius:16px;border:var(--thread-dash);background:var(--linen);visibility:hidden;}
+.saved-panel{background:var(--linen);border:var(--thread-dash);border-radius:16px;padding:18px 16px;}
+.saved-panel-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;font-family:'Plus Jakarta Sans',sans-serif;}
+.mero-app.lang-ne .saved-panel-title{font-family:'Noto Sans Devanagari',sans-serif;}
+.saved-panel-note{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:14px;}
+.saved-empty{font-size:12px;color:var(--muted);line-height:1.5;padding:12px 8px;text-align:center;border:1px dashed var(--border);border-radius:12px;}
+.saved-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;max-height:min(70vh,520px);overflow-y:auto;}
+.saved-card{background:var(--warm);border:var(--thread-dash);border-radius:12px;padding:12px 12px 14px;}
+.saved-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.saved-time{font-size:11px;font-weight:600;color:var(--muted);}
+.saved-remove{width:26px;height:26px;border-radius:8px;border:1px dashed var(--border);background:var(--linen);color:var(--soft);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all .15s;}
+.saved-remove:hover{border-color:var(--red);color:var(--red);}
+.saved-q{font-size:12px;color:var(--text);line-height:1.45;margin-bottom:8px;}
+.saved-q-label{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.saved-body-wrap{max-height:180px;overflow:auto;border-radius:8px;background:var(--linen);border:1px dashed var(--border);padding:10px 10px;}
+.saved-body{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:var(--text);line-height:1.55;margin:0;white-space:pre-wrap;word-break:break-word;}
+.mero-app.lang-ne .saved-body{font-family:'Noto Sans Devanagari',sans-serif;}
 .ask-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
 .text-input-area{width:100%;min-height:120px;background:var(--linen);border:var(--thread-dash);border-radius:14px;padding:16px 18px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:var(--text);resize:vertical;outline:none;transition:border .25s;font-weight:500;line-height:1.7;}
 .text-input-area:focus{border-color:var(--indigo-mid);border-style:solid;box-shadow:0 0 0 3px rgba(91,79,160,.08);}
@@ -191,6 +212,14 @@ nav{background:var(--linen);border-bottom:var(--thread-dash);position:sticky;top
 .resp-label .icon{width:14px;height:14px;}
 .resp-understanding{background:var(--warm);border-left:3px solid var(--indigo);border-radius:0 12px 12px 0;padding:14px 16px;}
 .resp-understanding p{font-size:13px;color:var(--text);line-height:1.7;}
+.conversational-reply .conversational-p{font-size:14px;color:var(--text);line-height:1.75;margin:0 0 14px;}
+.conversational-reply .conversational-p:last-child{margin-bottom:0;}
+.tts-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;}
+.tts-btn{display:inline-flex;align-items:center;gap:8px;background:var(--indigo);color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:opacity .2s;}
+.mero-app.lang-ne .tts-btn{font-family:'Noto Sans Devanagari',sans-serif;}
+.tts-btn:hover{opacity:.92;}
+.tts-btn-icon{font-size:15px;line-height:1;}
+.tts-hint{font-size:11px;color:var(--muted);line-height:1.4;max-width:220px;}
 .tip-list{display:flex;flex-direction:column;gap:8px;}
 .tip-item{display:flex;gap:12px;align-items:flex-start;background:var(--warm);border:1px dashed var(--border);border-radius:12px;padding:12px 14px;}
 .tip-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -252,6 +281,11 @@ footer{background:var(--linen);border-top:var(--thread-dash);padding:28px 28px;m
 .footer-note{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;}
 
 /* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .ask-layout{grid-template-columns:1fr;max-width:640px;}
+  .ask-sidebar{position:static;order:2;}
+  .ask-main{order:1;}
+}
 @media(max-width:768px){
   .hero{grid-template-columns:1fr;gap:28px;padding:40px 20px 30px;}
   .hero-visual{display:none;}
