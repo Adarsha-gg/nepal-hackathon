@@ -1,0 +1,813 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Mero Bachcha</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500&family=Fraunces:wght@400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --purple:#534AB7;--purple-dark:#3C3489;--purple-light:#EEEDFE;--purple-mid:#AFA9EC;
+  --teal:#1D9E75;--teal-light:#E1F5EE;
+  --coral:#D85A30;--coral-light:#FAECE7;
+  --red:#E24B4A;--red-light:#FCEBEB;
+  --amber:#BA7517;--amber-light:#FAEEDA;
+  --cream:#FBF8F3;--warm:#F5F2EC;--border:#E8E3DA;
+  --text:#2C2C2A;--muted:#888780;--soft:#5F5E5A;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;}
+
+/* ── LANGUAGE SYSTEM ── */
+[data-lang]{display:none;}
+body.lang-en [data-lang="en"]{display:block;}
+body.lang-ne [data-lang="ne"]{display:block;}
+body.lang-en [data-lang="en"].i{display:inline;}
+body.lang-ne [data-lang="ne"].i{display:inline;}
+body.lang-ne{font-family:'Noto Sans Devanagari',sans-serif;}
+body.lang-ne .fr{font-family:'Fraunces',serif;}
+body.lang-ne .dm{font-family:'DM Sans',sans-serif;}
+
+/* ── LANGUAGE PICKER OVERLAY ── */
+.lang-overlay{position:fixed;inset:0;background:#1A1728;z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;}
+.lang-overlay.hidden{display:none;}
+.lang-picker{max-width:420px;width:100%;text-align:center;}
+.lp-logo{width:56px;height:56px;border-radius:16px;background:var(--purple);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 20px;}
+.lp-name{font-family:'Fraunces',serif;font-size:24px;color:#E8E5FF;margin-bottom:4px;}
+.lp-ne{font-family:'Noto Sans Devanagari',sans-serif;font-size:14px;color:rgba(255,255,255,0.45);margin-bottom:8px;}
+.lp-tagline{font-size:14px;color:rgba(255,255,255,0.5);margin-bottom:32px;line-height:1.5;}
+.lp-prompt{font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:16px;}
+.lp-cards{display:flex;gap:12px;margin-bottom:24px;}
+.lp-card{flex:1;border:2px solid #2E2B4A;background:#22203A;border-radius:14px;padding:20px 12px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.lp-card:hover{border-color:#7F77DD;background:#2A2752;}
+.lp-card.selected{border-color:#7F77DD;background:#2D2958;}
+.lp-flag{font-size:28px;}
+.lp-lang-name{font-size:14px;font-weight:500;color:#DDDAF8;}
+.lp-lang-sub{font-size:11px;color:rgba(255,255,255,0.4);}
+.lp-tick{width:18px;height:18px;border-radius:50%;border:1.5px solid #3A375A;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+.lp-card.selected .lp-tick{background:var(--purple);border-color:var(--purple);}
+.lp-note{font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:20px;line-height:1.5;}
+.lp-btn{width:100%;background:var(--purple);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:500;cursor:pointer;transition:opacity .2s;}
+.lp-btn:hover{opacity:.88;}
+
+/* ── NAV ── */
+nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;padding:0 32px;}
+.nav-inner{max-width:1080px;margin:0 auto;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.nav-logo-icon{width:34px;height:34px;border-radius:10px;background:var(--purple);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.nav-logo-text{font-family:'Fraunces',serif;font-size:17px;color:var(--text);}
+.nav-links{display:flex;align-items:center;gap:28px;}
+.nav-links a{font-size:14px;color:var(--soft);text-decoration:none;cursor:pointer;transition:color .2s;}
+.nav-links a:hover{color:var(--purple);}
+.lang-switch{display:flex;align-items:center;gap:8px;}
+.lang-switch-label{font-size:12px;color:var(--muted);}
+.lang-toggle{display:flex;border-radius:20px;border:1px solid var(--border);background:var(--warm);overflow:hidden;}
+.lang-btn{padding:5px 14px;font-size:12px;font-weight:500;color:var(--soft);border:none;background:transparent;cursor:pointer;transition:all .15s;}
+.lang-btn.active{background:var(--text);color:#fff;border-radius:18px;}
+.nav-cta{background:var(--purple);color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;}
+
+/* ── PAGE SYSTEM ── */
+.page{display:none;}
+.page.active{display:block;}
+
+/* ── HERO ── */
+.hero{max-width:1080px;margin:0 auto;padding:80px 32px 60px;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--purple-light);color:var(--purple-dark);font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;margin-bottom:20px;}
+.hero-title{font-family:'Fraunces',serif;font-size:50px;font-weight:400;line-height:1.1;color:var(--text);margin-bottom:18px;}
+.hero-desc{font-size:16px;color:var(--soft);line-height:1.7;margin-bottom:32px;max-width:460px;}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;}
+.btn-primary{background:var(--purple);color:#fff;padding:13px 26px;border-radius:10px;font-size:14px;font-weight:500;border:none;cursor:pointer;transition:opacity .2s;}
+.btn-primary:hover{opacity:.88;}
+.btn-outline{background:transparent;color:var(--purple);padding:12px 22px;border-radius:10px;font-size:14px;font-weight:500;border:1.5px solid var(--purple-mid);cursor:pointer;transition:background .2s;}
+.btn-outline:hover{background:var(--purple-light);}
+.hero-stats{display:flex;gap:24px;margin-top:36px;}
+.stat-num{font-family:'Fraunces',serif;font-size:28px;color:var(--purple);}
+.stat-label{font-size:12px;color:var(--muted);margin-top:2px;}
+.hero-visual{background:#fff;border:1px solid var(--border);border-radius:20px;padding:28px;display:flex;flex-direction:column;gap:16px;}
+.hv-mic{background:var(--purple);border-radius:14px;padding:16px;display:flex;gap:12px;align-items:center;}
+.mic-circle{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.mic-text{font-size:13px;color:#fff;font-weight:500;line-height:1.4;}
+.mic-sub{font-size:11px;color:rgba(255,255,255,.65);margin-top:2px;}
+.hv-bubble{background:var(--purple-light);border-radius:10px 10px 10px 2px;padding:10px 14px;}
+.hv-bubble-text{font-size:13px;color:var(--purple-dark);line-height:1.55;}
+.hv-tip{background:var(--warm);border-radius:10px;padding:12px 14px;border-left:3px solid var(--purple);}
+.hv-tip-label{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.hv-tip-text{font-size:13px;color:var(--text);line-height:1.5;}
+
+/* ── SECTION ── */
+.section{max-width:1080px;margin:0 auto;padding:60px 32px;}
+.section-tag{font-size:11px;font-weight:500;color:var(--purple);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+.section-title{font-family:'Fraunces',serif;font-size:36px;font-weight:400;line-height:1.2;margin-bottom:8px;}
+.section-sub{font-size:15px;color:var(--soft);max-width:520px;line-height:1.6;margin-bottom:40px;}
+
+/* ── STEPS ── */
+.steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
+.step-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:24px 20px;}
+.step-num{width:30px;height:30px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:14px;color:var(--purple);margin-bottom:14px;}
+.step-icon{font-size:24px;margin-bottom:10px;}
+.step-title{font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px;}
+.step-desc{font-size:13px;color:var(--soft);line-height:1.6;}
+
+/* ── CRISIS BAR ── */
+.crisis-bar{background:var(--red-light);border-top:1px solid #F7C1C1;border-bottom:1px solid #F7C1C1;padding:12px 32px;}
+.crisis-bar-inner{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:14px;}
+.crisis-text{font-size:13px;color:#791F1F;flex:1;line-height:1.4;}
+.crisis-btn-bar{background:var(--red);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;}
+
+/* ── PAGE HEADER ── */
+.page-header{background:#fff;border-bottom:1px solid var(--border);padding:20px 32px;}
+.page-header-inner{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;}
+.ph-title{font-family:'Fraunces',serif;font-size:22px;font-weight:400;}
+.ph-sub{font-size:13px;color:var(--muted);margin-top:2px;}
+
+/* ── ASK PAGE ── */
+.ask-layout{max-width:880px;margin:0 auto;padding:40px 32px;}
+.ask-grid{display:grid;grid-template-columns:1fr 340px;gap:24px;}
+.ask-main{display:flex;flex-direction:column;gap:16px;}
+.voice-box{background:#fff;border:1px solid var(--border);border-radius:16px;padding:28px;text-align:center;}
+.voice-ring{width:80px;height:80px;border-radius:50%;border:2px solid var(--purple-mid);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.voice-btn{width:62px;height:62px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;border:none;transition:transform .15s;}
+.voice-btn:hover{transform:scale(1.05);}
+.voice-hint{font-size:13px;color:var(--muted);margin-top:4px;}
+.divider-or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;}
+.divider-or::before,.divider-or::after{content:'';flex:1;height:1px;background:var(--border);}
+.text-input-area{width:100%;min-height:100px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);resize:vertical;outline:none;transition:border .2s;}
+.text-input-area:focus{border-color:var(--purple-mid);}
+body.lang-ne .text-input-area{font-family:'Noto Sans Devanagari',sans-serif;}
+.topic-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{padding:6px 14px;border-radius:20px;font-size:13px;border:1px solid var(--border);color:var(--soft);background:#fff;cursor:pointer;transition:all .2s;}
+.chip:hover,.chip.active{background:var(--purple);color:#fff;border-color:var(--purple);}
+.submit-btn{width:100%;background:var(--purple);color:#fff;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .2s;}
+.submit-btn:hover{opacity:.88;}
+.ask-sidebar{display:flex;flex-direction:column;gap:14px;}
+.sidebar-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;}
+.sc-title{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;}
+.recent-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);}
+.recent-item:last-child{border-bottom:none;padding-bottom:0;}
+.ri-icon{width:26px;height:26px;border-radius:7px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.ri-text{font-size:13px;color:var(--text);line-height:1.4;}
+.ri-date{font-size:11px;color:var(--muted);margin-top:2px;}
+.ec-wrap{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+.ec-wrap:last-child{border-bottom:none;padding-bottom:0;}
+.ec-avatar{width:36px;height:36px;border-radius:50%;background:var(--coral-light);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.ec-name{font-size:13px;font-weight:500;color:var(--text);}
+.ec-role{font-size:11px;color:var(--muted);}
+.ec-badge{margin-left:auto;font-size:10px;padding:2px 8px;border-radius:12px;background:var(--teal-light);color:var(--teal);}
+
+/* ── ADVICE PAGE ── */
+.advice-layout{max-width:880px;margin:0 auto;padding:40px 32px;}
+.filter-bar{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+.filter-pill{padding:6px 16px;border-radius:20px;font-size:13px;border:1px solid var(--border);color:var(--soft);background:#fff;cursor:pointer;transition:all .2s;}
+.filter-pill.active{background:var(--purple);color:#fff;border-color:var(--purple);}
+.advice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+.advice-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;cursor:pointer;transition:border-color .2s;}
+.advice-card:hover{border-color:var(--purple-mid);}
+.ac-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.ac-tag{font-size:11px;padding:3px 8px;border-radius:12px;background:var(--purple-light);color:var(--purple-dark);}
+.ac-tag.teal{background:var(--teal-light);color:#085041;}
+.ac-tag.amber{background:var(--amber-light);color:#633806;}
+.ac-date{font-size:11px;color:var(--muted);}
+.ac-title{font-size:14px;font-weight:500;color:var(--text);margin-bottom:6px;line-height:1.4;}
+.ac-preview{font-size:12px;color:var(--soft);line-height:1.5;margin-bottom:12px;}
+.ac-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);}
+.ac-child{font-size:12px;color:var(--purple);}
+.ac-actions{display:flex;gap:12px;font-size:18px;}
+
+/* ── PROGRESS PAGE ── */
+.progress-layout{max-width:880px;margin:0 auto;padding:40px 32px;}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;}
+.sc-num{font-family:'Fraunces',serif;font-size:32px;color:var(--purple);margin-bottom:4px;}
+.sc-lbl{font-size:13px;color:var(--soft);}
+.chart-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px;}
+.chart-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:20px;}
+.bar-chart{display:flex;gap:8px;align-items:flex-end;height:100px;}
+.bar-col{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;}
+.bar{width:100%;border-radius:4px 4px 0 0;background:var(--purple-mid);}
+.bar.high{background:var(--purple);}
+.bar-day{font-size:11px;color:var(--muted);}
+.mood-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.mood-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:all .2s;}
+.mood-card:hover{border-color:var(--purple-mid);}
+.mood-card.selected{background:var(--purple-light);border-color:var(--purple);}
+.mood-icon{font-size:28px;margin-bottom:6px;}
+.mood-label{font-size:12px;color:var(--soft);}
+
+/* ── SETTINGS PAGE ── */
+.settings-layout{max-width:680px;margin:0 auto;padding:40px 32px;}
+.profile-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;display:flex;align-items:center;gap:16px;}
+.profile-avatar{width:56px;height:56px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:24px;}
+.profile-name{font-size:17px;font-weight:500;color:var(--text);}
+.profile-sub{font-size:13px;color:var(--muted);}
+.edit-btn{margin-left:auto;font-size:12px;color:var(--purple);border:1px solid var(--purple-mid);padding:6px 14px;border-radius:8px;cursor:pointer;background:transparent;}
+.settings-section{margin-bottom:20px;}
+.ss-title{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+.settings-group{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.settings-row{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--warm);cursor:pointer;transition:background .15s;}
+.settings-row:last-child{border-bottom:none;}
+.settings-row:hover{background:var(--warm);}
+.sr-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.sr-label{font-size:14px;color:var(--text);flex:1;}
+.sr-sub{font-size:12px;color:var(--muted);margin-top:1px;}
+.sr-arrow{font-size:16px;color:var(--border);}
+.toggle{width:40px;height:22px;border-radius:11px;background:var(--purple);position:relative;cursor:pointer;flex-shrink:0;}
+.toggle-knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;right:2px;}
+.child-row{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--warm);}
+.child-row:last-child{border-bottom:none;}
+.child-avatar{width:36px;height:36px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.child-name{font-size:14px;font-weight:500;color:var(--text);}
+.child-meta{font-size:12px;color:var(--muted);}
+.add-child{display:flex;align-items:center;gap:10px;padding:12px 18px;color:var(--purple);font-size:14px;cursor:pointer;}
+.add-icon{width:36px;height:36px;border-radius:50%;border:2px dashed var(--purple-mid);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--purple-mid);}
+.lc-btn{padding:5px 14px;border-radius:16px;font-size:12px;font-weight:500;border:1px solid var(--border);color:var(--soft);background:transparent;cursor:pointer;}
+.lc-btn.active{background:var(--purple);color:#fff;border-color:var(--purple);}
+.logout-btn{width:100%;background:var(--red-light);color:var(--red);border:1px solid #F7C1C1;border-radius:12px;padding:14px;font-size:14px;font-weight:500;cursor:pointer;margin-top:12px;}
+
+/* ── CRISIS PAGE ── */
+.crisis-layout{max-width:780px;margin:0 auto;padding:60px 32px;}
+.crisis-alert-box{background:var(--red-light);border:1px solid #F09595;border-radius:14px;padding:20px 24px;display:flex;gap:14px;margin-bottom:24px;}
+.crisis-action{background:#fff;border:1px solid #F7C1C1;border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;transition:border-color .2s;}
+.crisis-action:hover{border-color:#F09595;}
+.ca-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.ca-title{font-size:14px;font-weight:500;color:var(--text);}
+.ca-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.ca-arrow{margin-left:auto;font-size:16px;color:var(--border);}
+.crisis-divider{display:flex;align-items:center;gap:12px;margin:20px 0;}
+.crisis-divider-line{flex:1;height:1px;background:#F7C1C1;}
+.crisis-divider-text{font-size:13px;color:#A32D2D;}
+.btn-crisis{width:100%;background:var(--red);color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:500;cursor:pointer;}
+
+/* ── FOOTER ── */
+footer{background:#fff;border-top:1px solid var(--border);padding:28px 32px;margin-top:60px;}
+.footer-inner{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;}
+.footer-logo{font-family:'Fraunces',serif;font-size:15px;color:var(--text);}
+.footer-links{display:flex;gap:24px;}
+.footer-links a{font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;}
+.footer-links a:hover{color:var(--purple);}
+.footer-note{font-size:11px;color:var(--muted);margin-top:6px;}
+
+@media(max-width:700px){
+  .hero{grid-template-columns:1fr;gap:32px;padding:40px 20px;}
+  .hero-visual{display:none;}
+  .steps-grid{grid-template-columns:1fr 1fr;}
+  .ask-grid{grid-template-columns:1fr;}
+  .advice-grid{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  nav .nav-links{display:none;}
+  .lp-cards{flex-direction:column;}
+}
+</style>
+</head>
+
+
+<!-- ══════════════════════════════════
+     LANGUAGE PICKER OVERLAY
+══════════════════════════════════ -->
+<div class="lang-overlay" id="lang-overlay">
+  <div class="lang-picker">
+    <div class="lp-logo">🙏</div>
+    <div class="lp-name">Mero Bachcha</div>
+    <div class="lp-ne">मेरो बच्चा</div>
+    <div class="lp-tagline">
+      A free, private space for parents to<br/>
+      understand and support their children.
+    </div>
+    <div class="lp-prompt">Please choose your language</div>
+    <div class="lp-cards">
+      <div class="lp-card" id="pick-en" onclick="pickLang('en')">
+        <div class="lp-flag">🇬🇧</div>
+        <div class="lp-lang-name">English</div>
+        <div class="lp-lang-sub">Full support</div>
+        <div class="lp-tick" id="tick-en"></div>
+      </div>
+      <div class="lp-card selected" id="pick-ne" onclick="pickLang('ne')">
+        <div class="lp-flag">🇳🇵</div>
+        <div class="lp-lang-name" style="font-family:'Noto Sans Devanagari',sans-serif;">नेपाली</div>
+        <div class="lp-lang-sub" style="font-family:'Noto Sans Devanagari',sans-serif;">पूर्ण सहयोग</div>
+        <div class="lp-tick" id="tick-ne" style="background:var(--purple);border-color:var(--purple);">✓</div>
+      </div>
+    </div>
+    <div class="lp-note">
+      You can change language anytime from the navigation bar or Profile settings.
+    </div>
+    <button class="lp-btn" onclick="confirmLang()">
+      <span id="lp-btn-text">Continue — जारी राख्नुहोस्</span>
+    </button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     NAV
+══════════════════════════════════ -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo" onclick="showPage('home')">
+      <div class="nav-logo-icon">🙏</div>
+      <div>
+        <div class="nav-logo-text">Mero Bachcha</div>
+      </div>
+    </div>
+    <div class="nav-links">
+      <a onclick="showPage('home')">
+        <span data-lang="en">Home</span><span data-lang="ne">गृहपृष्ठ</span>
+      </a>
+      <a onclick="showPage('ask')">
+        <span data-lang="en">Ask</span><span data-lang="ne">सोध्नुहोस्</span>
+      </a>
+      <a onclick="showPage('advice')">
+        <span data-lang="en">My advice</span><span data-lang="ne">मेरो सल्लाह</span>
+      </a>
+      <a onclick="showPage('progress')">
+        <span data-lang="en">Progress</span><span data-lang="ne">प्रगति</span>
+      </a>
+      <a onclick="showPage('settings')">
+        <span data-lang="en">Profile</span><span data-lang="ne">प्रोफाइल</span>
+      </a>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="lang-switch">
+        <div class="lang-toggle">
+          <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+          <button class="lang-btn active" id="btn-ne" onclick="setLang('ne')" style="font-family:'Noto Sans Devanagari',sans-serif;">ने</button>
+        </div>
+      </div>
+      <button class="nav-cta" onclick="showPage('ask')">
+        <span data-lang="en">Start talking</span>
+        <span data-lang="ne">सुरु गर्नुहोस्</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ══════════════════════════════════
+     PAGE: HOME
+══════════════════════════════════ -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <div>
+      <div class="hero-badge">
+        🙏
+        <span data-lang="en">Free · Confidential · For Nepali families</span>
+        <span data-lang="ne">निःशुल्क · गोपनीय · नेपाली परिवारका लागि</span>
+      </div>
+      <div class="hero-title fr">
+        <span data-lang="en">Understand your child better.</span>
+        <span data-lang="ne">आफ्नो बच्चालाई बुझ्नुहोस्।</span>
+      </div>
+      <p class="hero-desc">
+        <span data-lang="en">A gentle, culturally-aware space where Nepali parents can ask questions about their children and receive empathetic guidance.</span>
+        <span data-lang="ne">नेपाली अभिभावकहरूका लागि एक सुरक्षित ठाउँ — जहाँ तपाईं आफ्नो बच्चाबारे प्रश्न सोध्न र सहानुभूतिपूर्ण सल्लाह पाउन सक्नुहुन्छ।</span>
+      </p>
+      <div class="hero-btns">
+        <button class="btn-primary" onclick="showPage('ask')">
+          <span data-lang="en">Ask a question</span>
+          <span data-lang="ne">प्रश्न सोध्नुहोस्</span>
+        </button>
+        <button class="btn-outline" onclick="showPage('advice')">
+          <span data-lang="en">See saved advice</span>
+          <span data-lang="ne">सुरक्षित सल्लाह हेर्नुहोस्</span>
+        </button>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="stat-num">12k+</div>
+          <div class="stat-label"><span data-lang="en">Parents helped</span><span data-lang="ne">सहायता प्राप्त अभिभावक</span></div>
+        </div>
+        <div>
+          <div class="stat-num">4.9★</div>
+          <div class="stat-label"><span data-lang="en">Average rating</span><span data-lang="ne">औसत मूल्यांकन</span></div>
+        </div>
+        <div>
+          <div class="stat-num">Free</div>
+          <div class="stat-label"><span data-lang="en">Always free</span><span data-lang="ne">सधैं निःशुल्क</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hv-mic">
+        <div class="mic-circle">🎙️</div>
+        <div>
+          <div class="mic-text">
+            <span data-lang="en">Tap to speak</span>
+            <span data-lang="ne">थिच्नुहोस् — बोल्नुहोस्</span>
+          </div>
+          <div class="mic-sub">
+            <span data-lang="en">Speak naturally in English or Nepali</span>
+            <span data-lang="ne">नेपाली वा अङ्ग्रेजीमा स्वाभाविक रूपमा बोल्नुहोस्</span>
+          </div>
+        </div>
+      </div>
+      <div class="hv-bubble">
+        <div class="hv-bubble-text">
+          <span data-lang="en">"My son doesn't focus on studies, only on sport..."</span>
+          <span data-lang="ne">"मेरो छोरा पढाइमा ध्यान दिँदैन, खेलमा मात्र छ..."</span>
+        </div>
+      </div>
+      <div class="hv-tip">
+        <div class="hv-tip-label">
+          <span data-lang="en">Gentle advice</span>
+          <span data-lang="ne">सहज सल्लाह</span>
+        </div>
+        <div class="hv-tip-text">
+          <span data-lang="en">He's not avoiding you — he needs space to grow. Listen before advising.</span>
+          <span data-lang="ne">उनको खेलमा रुचि छ — सम्झाउनुको सट्टा सुन्नुहोस्। विश्वास बढाउनुहोस्।</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:60px 32px;">
+    <div class="section" style="padding:0;">
+      <div class="section-tag">
+        <span data-lang="en">How it works</span>
+        <span data-lang="ne">कसरी काम गर्छ</span>
+      </div>
+      <div class="section-title fr">
+        <span data-lang="en">Simple. Private. Yours.</span>
+        <span data-lang="ne">सरल। गोपनीय। तपाईंको।</span>
+      </div>
+      <div class="section-sub">
+        <span data-lang="en">No jargon, no judgment — thoughtful guidance tailored to your family and culture.</span>
+        <span data-lang="ne">कुनै जटिलता छैन — तपाईंको परिवार र संस्कृतिअनुसार सोचपूर्ण मार्गदर्शन।</span>
+      </div>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-icon">🗣️</div>
+          <div class="step-title"><span data-lang="en">Speak or type</span><span data-lang="ne">बोल्नुहोस् वा टाइप</span></div>
+          <div class="step-desc"><span data-lang="en">Ask in Nepali or English — voice or text, whichever feels natural.</span><span data-lang="ne">नेपाली वा अङ्ग्रेजीमा सोध्नुहोस् — जुन सहज लाग्छ।</span></div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-icon">💬</div>
+          <div class="step-title"><span data-lang="en">Answer follow-ups</span><span data-lang="ne">थप जानकारी दिनुहोस्</span></div>
+          <div class="step-desc"><span data-lang="en">Share your child's age, interests, and what you've noticed at home.</span><span data-lang="ne">बच्चाको उमेर, रुचि र घरमा देखेको कुरा बताउनुहोस्।</span></div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-icon">🌿</div>
+          <div class="step-title"><span data-lang="en">Get advice</span><span data-lang="ne">सल्लाह पाउनुहोस्</span></div>
+          <div class="step-desc"><span data-lang="en">Receive gentle, culturally-aware guidance drawn from research and experts.</span><span data-lang="ne">अनुसन्धान र विशेषज्ञबाट कोमल, सांस्कृतिक मार्गदर्शन पाउनुहोस्।</span></div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <div class="step-icon">📋</div>
+          <div class="step-title"><span data-lang="en">Save and track</span><span data-lang="ne">सुरक्षित र ट्र्याक</span></div>
+          <div class="step-desc"><span data-lang="en">Keep your advice, log moods, and watch progress over time.</span><span data-lang="ne">सल्लाह राख्नुहोस्, मनस्थिति लग गर्नुहोस्, प्रगति हेर्नुहोस्।</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="crisis-bar">
+    <div class="crisis-bar-inner">
+      <div style="font-size:20px;">⚠️</div>
+      <div class="crisis-text">
+        <span data-lang="en">If your child is in danger or distress — <strong>Nepal Helpline: 1166</strong></span>
+        <span data-lang="ne">यदि तपाईंको बच्चा खतरामा छ — <strong>नेपाल हेल्पलाइन: ११६६</strong></span>
+      </div>
+      <button class="crisis-btn-bar" onclick="showPage('crisis')">
+        <span data-lang="en">Get urgent help</span>
+        <span data-lang="ne">तत्काल सहायता</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     PAGE: ASK
+══════════════════════════════════ -->
+<div class="page" id="page-ask">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div>
+        <div class="ph-title fr">
+          <span data-lang="en">Ask a question</span>
+          <span data-lang="ne">प्रश्न सोध्नुहोस्</span>
+        </div>
+        <div class="ph-sub">
+          <span data-lang="en">Voice or text — speak freely, in any language</span>
+          <span data-lang="ne">आवाज वा पाठ — स्वतन्त्र रूपमा बोल्नुहोस्</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ask-layout">
+    <div class="ask-grid">
+      <div class="ask-main">
+        <div class="voice-box">
+          <div class="voice-ring">
+            <button class="voice-btn" onclick="toggleMic(this)">🎙️</button>
+          </div>
+          <div class="voice-hint">
+            <span data-lang="en">Press and hold to speak</span>
+            <span data-lang="ne">थिच्नुहोस् र बोल्नुहोस्</span>
+          </div>
+        </div>
+        <div class="divider-or">
+          <span data-lang="en">or type below</span>
+          <span data-lang="ne">वा तल टाइप गर्नुहोस्</span>
+        </div>
+        <textarea class="text-input-area" id="question-input" rows="4"></textarea>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">
+            <span data-lang="en">Quick topic buttons</span>
+            <span data-lang="ne">छिटो विषय बटनहरू</span>
+          </div>
+          <div class="topic-chips">
+            <div class="chip" onclick="addTopic(this,'study')">
+              <span data-lang="en">Study</span><span data-lang="ne">पढाइ</span>
+            </div>
+            <div class="chip" onclick="addTopic(this,'anger')">
+              <span data-lang="en">Anger</span><span data-lang="ne">रिसाहा</span>
+            </div>
+            <div class="chip" onclick="addTopic(this,'phone')">
+              <span data-lang="en">Phone use</span><span data-lang="ne">फोन लत</span>
+            </div>
+            <div class="chip" onclick="addTopic(this,'friends')">
+              <span data-lang="en">Friends</span><span data-lang="ne">साथी</span>
+            </div>
+            <div class="chip" onclick="addTopic(this,'interest')">
+              <span data-lang="en">Interests</span><span data-lang="ne">रुचि</span>
+            </div>
+            <div class="chip" onclick="addTopic(this,'confidence')">
+              <span data-lang="en">Confidence</span><span data-lang="ne">आत्मविश्वास</span>
+            </div>
+          </div>
+        </div>
+        <button class="submit-btn" onclick="submitQuestion()" id="submit-btn">
+          <span data-lang="en">Get advice</span>
+          <span data-lang="ne">सल्लाह पाउनुहोस्</span>
+        </button>
+        <div id="response-area" style="display:none;background:#fff;border:1px solid var(--border);border-radius:16px;padding:24px;">
+          <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">
+            <span data-lang="en">Understanding</span>
+            <span data-lang="ne">बुझाइ</span>
+          </div>
+          <div style="background:var(--warm);border-left:3px solid var(--purple);border-radius:0 10px 10px 0;padding:12px 16px;margin-bottom:16px;">
+            <div id="ai-response-text" style="font-size:14px;color:var(--text);line-height:1.6;"></div>
+              <span data-lang="en">Teenagers need space to grow. He's not avoiding you — sport and friendships are how he builds identity. Listen without judgment first.</span>
+              <span data-lang="ne">किशोरावस्थामा खेल र मित्रहरू नै संसार हो। उनी पलायन गर्दैनन् — उनलाई आफ्नो ठाउँ चाहिन्छ।</span>
+            </div>
+          </div>
+          <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">
+            <span data-lang="en">Practical tips</span>
+            <span data-lang="ne">व्यावहारिक सुझावहरू</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--warm);border-radius:10px;padding:10px 12px;">
+              <div style="font-size:18px;flex-shrink:0;">💬</div>
+              <div style="font-size:13px;color:var(--text);line-height:1.5;">
+                <span data-lang="en">Ask about his sport without criticism — just listen. This builds trust.</span>
+                <span data-lang="ne">उनको खेलबारे सोध्नुहोस् — आलोचना नगरी सुन्नुहोस्। यसले विश्वास बढाउँछ।</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--warm);border-radius:10px;padding:10px 12px;">
+              <div style="font-size:18px;flex-shrink:0;">⏰</div>
+              <div style="font-size:13px;color:var(--text);line-height:1.5;">
+                <span data-lang="en">Create a study and play schedule together — agreement, not orders.</span>
+                <span data-lang="ne">खेल र पढाइको समय सँगै तय गर्नुहोस् — आदेश होइन, सहमतिमा।</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--warm);border-radius:10px;padding:10px 12px;">
+              <div style="font-size:18px;flex-shrink:0;">🏆</div>
+              <div style="font-size:13px;color:var(--text);line-height:1.5;">
+                <span data-lang="en">Recognise that sport builds life skills too — teamwork, discipline, resilience.</span>
+                <span data-lang="ne">खेलमा सफलता = जीवनको सीप पनि हो भन्ने बुझ्नुस् र बुझाउनुहोस्।</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <button onclick="saveAdvice(event)" style="flex:1;background:var(--purple);color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:500;cursor:pointer;">
+              <span data-lang="en">Save advice</span>
+              <span data-lang="ne">सुरक्षित गर्नुहोस्</span>
+            </button>
+            <button onclick="showPage('ask')" style="background:var(--purple-light);color:var(--purple);border:none;border-radius:10px;padding:11px 16px;font-size:13px;cursor:pointer;">
+              <span data-lang="en">Ask again</span>
+              <span data-lang="ne">फेरि सोध्नुहोस्</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="ask-sidebar">
+        <div class="sidebar-card">
+          <div class="sc-title">
+            <span data-lang="en">Recent sessions</span>
+            <span data-lang="ne">हालका प्रश्नहरू</span>
+          </div>
+          <div class="recent-item">
+            <div class="ri-icon">📚</div>
+            <div>
+              <div class="ri-text"><span data-lang="en">Study focus issues</span><span data-lang="ne">पढाइमा ध्यान नदिनु</span></div>
+              <div class="ri-date"><span data-lang="en">2 days ago · 5 tips</span><span data-lang="ne">२ दिन अघि · ५ सुझाव</span></div>
+            </div>
+          </div>
+          <div class="recent-item">
+            <div class="ri-icon">💙</div>
+            <div>
+              <div class="ri-text"><span data-lang="en">Too much time with friends</span><span data-lang="ne">साथीसँग बढी समय</span></div>
+              <div class="ri-date"><span data-lang="en">5 days ago · 4 tips</span><span data-lang="ne">५ दिन अघि · ४ सुझाव</span></div>
+            </div>
+          </div>
+          <div class="recent-item">
+            <div class="ri-icon">📱</div>
+            <div>
+              <div class="ri-text"><span data-lang="en">Phone and social media</span><span data-lang="ne">फोन र सोशल मिडिया</span></div>
+              <div class="ri-date"><span data-lang="en">1 week ago · 3 tips</span><span data-lang="ne">१ हप्ता अघि · ३ सुझाव</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-card">
+          <div class="sc-title">
+            <span data-lang="en">Available experts</span>
+            <span data-lang="ne">उपलब्ध विशेषज्ञहरू</span>
+          </div>
+          <div class="ec-wrap">
+            <div class="ec-avatar">👩</div>
+            <div>
+              <div class="ec-name">Dr. Anita Shrestha</div>
+              <div class="ec-role"><span data-lang="en">Child Psychologist</span><span data-lang="ne">बाल मनोचिकित्सक</span></div>
+            </div>
+            <div class="ec-badge"><span data-lang="en">Live</span><span data-lang="ne">उपलब्ध</span></div>
+          </div>
+          <div class="ec-wrap">
+            <div class="ec-avatar">👨</div>
+            <div>
+              <div class="ec-name">Ram Bahadur KC</div>
+              <div class="ec-role"><span data-lang="en">Family Counsellor</span><span data-lang="ne">पारिवारिक परामर्शदाता</span></div>
+            </div>
+            <div class="ec-badge" style="background:var(--amber-light);color:var(--amber);">2 hrs</div>
+          </div>
+          <div style="margin-top:12px;">
+            <button style="width:100%;background:var(--coral-light);color:var(--coral);border:1px solid #F0997B;border-radius:8px;padding:9px;font-size:12px;font-weight:500;cursor:pointer;">
+              <span data-lang="en">Book expert session</span>
+              <span data-lang="ne">विशेषज्ञ सत्र बुक गर्नुहोस्</span>
+            </button>
+          </div>
+        </div>
+        <div class="sidebar-card" style="background:var(--red-light);border-color:#F7C1C1;">
+          <div style="display:flex;gap:8px;align-items:flex-start;">
+            <div style="font-size:18px;">⚠️</div>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#501313;margin-bottom:4px;">
+                <span data-lang="en">Need urgent help?</span>
+                <span data-lang="ne">तत्काल सहायता चाहिन्छ?</span>
+              </div>
+              <div style="font-size:12px;color:#791F1F;line-height:1.5;">
+                <span data-lang="en">Nepal Mental Health Helpline · 1166. Free, confidential, available now.</span>
+                <span data-lang="ne">नेपाल मानसिक स्वास्थ्य हेल्पलाइन · ११६६। निःशुल्क, गोपनीय, अहिले उपलब्ध।</span>
+              </div>
+              <button onclick="showPage('crisis')" style="margin-top:8px;background:var(--red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;">
+                <span data-lang="en">Get help now</span>
+                <span data-lang="ne">अहिले सहायता लिनुहोस्</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     PAGE: ADVICE
+══════════════════════════════════ -->
+<div class="page" id="page-advice">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div>
+        <div class="ph-title fr"><span data-lang="en">Saved advice</span><span data-lang="ne">सुरक्षित सल्लाह</span></div>
+        <div class="ph-sub"><span data-lang="en">Your personal library of tips</span><span data-lang="ne">तपाईंको व्यक्तिगत सुझाव संग्रह</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="advice-layout">
+    <div class="filter-bar">
+      <button class="filter-pill active" onclick="filterAdvice(this)"><span data-lang="en">All</span><span data-lang="ne">सबै</span></button>
+      <button class="filter-pill" onclick="filterAdvice(this)"><span data-lang="en">Study</span><span data-lang="ne">पढाइ</span></button>
+      <button class="filter-pill" onclick="filterAdvice(this)"><span data-lang="en">Behaviour</span><span data-lang="ne">व्यवहार</span></button>
+      <button class="filter-pill" onclick="filterAdvice(this)"><span data-lang="en">Interests</span><span data-lang="ne">रुचि</span></button>
+      <button class="filter-pill" onclick="filterAdvice(this)"><span data-lang="en">Bonding</span><span data-lang="ne">सम्बन्ध</span></button>
+    </div>
+    <div class="advice-grid">
+      <div class="advice-card">
+        <div class="ac-top"><span class="ac-tag"><span data-lang="en">Study</span><span data-lang="ne">पढाइ</span></span><span class="ac-date"><span data-lang="en">2 days ago</span><span data-lang="ne">२ दिन अघि</span></span></div>
+        <div class="ac-title"><span data-lang="en">Why won't he focus on studies?</span><span data-lang="ne">किन पढाइमा मन लाग्दैन?</span></div>
+        <div class="ac-preview"><span data-lang="en">Ask about his sport without criticism. This builds the trust needed for study conversations.</span><span data-lang="ne">उनको खेलबारे सोध्नुहोस् — आलोचना नगरी सुन्नुहोस्।</span></div>
+        <div class="ac-bottom"><span class="ac-child">Arjun</span><div class="ac-actions">🔖 📤</div></div>
+      </div>
+      <div class="advice-card">
+        <div class="ac-top"><span class="ac-tag teal"><span data-lang="en">Behaviour</span><span data-lang="ne">व्यवहार</span></span><span class="ac-date"><span data-lang="en">5 days ago</span><span data-lang="ne">५ दिन अघि</span></span></div>
+        <div class="ac-title"><span data-lang="en">Too much time with friends</span><span data-lang="ne">साथीसँग बढी समय</span></div>
+        <div class="ac-preview"><span data-lang="en">Ask his friend's name — don't criticise. This opens doors to honest conversation.</span><span data-lang="ne">साथीको नाम सोध्नुहोस्, निन्दा नगर्नुहोस् — उनलाई खुल्ने मौका दिन्छ।</span></div>
+        <div class="ac-bottom"><span class="ac-child">Arjun</span><div class="ac-actions">🔖 📤</div></div>
+      </div>
+      <div class="advice-card">
+        <div class="ac-top"><span class="ac-tag amber"><span data-lang="en">Interests</span><span data-lang="ne">रुचि</span></span><span class="ac-date"><span data-lang="en">1 week ago</span><span data-lang="ne">१ हप्ता अघि</span></span></div>
+        <div class="ac-title"><span data-lang="en">Only interested in sport</span><span data-lang="ne">खेलमा मात्र रुचि</span></div>
+        <div class="ac-preview"><span data-lang="en">Sport can be a career — open that conversation. Don't close it with doubt.</span><span data-lang="ne">खेल नै करियर हुन सक्छ — यो विचार खुलाउनुहोस्।</span></div>
+        <div class="ac-bottom"><span class="ac-child">Arjun</span><div class="ac-actions">🔖 📤</div></div>
+      </div>
+      <div class="advice-card">
+        <div class="ac-top"><span class="ac-tag teal"><span data-lang="en">Bonding</span><span data-lang="ne">सम्बन्ध</span></span><span class="ac-date"><span data-lang="en">2 weeks ago</span><span data-lang="ne">२ हप्ता अघि</span></span></div>
+        <div class="ac-title"><span data-lang="en">How to connect with a quiet child</span><span data-lang="ne">चुप बच्चासँग कसरी जोडिने</span></div>
+        <div class="ac-preview"><span data-lang="en">One activity per week — her choice. No phones, no pressure. Just presence.</span><span data-lang="ne">हप्तामा एकपटक सँगै केही गर्नुहोस् — उनको रोजाइमा।</span></div>
+        <div class="ac-bottom"><span class="ac-child">Priya</span><div class="ac-actions">🔖 📤</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     PAGE: PROGRESS
+══════════════════════════════════ -->
+<div class="page" id="page-progress">
+    <div class="page-header">
+      <div class="page-header-inner">
+        <div>
+          <div class="ph-title fr"><span data-lang="en">Progress</span><span data-lang="ne">प्रगति</span></div>
+          <div class="ph-sub"><span data-lang="en">Track your bond over time</span><span data-lang="ne">समयसँगै सम्बन्ध ट्र्याक गर्नुहोस्</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="progress-layout">
+      <div class="stats-row">
+         <div class="stat-card">
+            <div class="sc-num">12</div>
+            <div class="sc-lbl">Days Tracked</div>
+         </div>
+      </div> </div> </div> <script>
+      let selectedLang = "ne"; 
+  
+      function pickLang(lang) {
+          selectedLang = lang;
+          document.getElementById("pick-en").classList.remove("selected");
+          document.getElementById("pick-ne").classList.remove("selected");
+          document.getElementById("tick-en").innerText = "";
+          document.getElementById("tick-ne").innerText = "";
+  
+          if (lang === "en") {
+              document.getElementById("pick-en").classList.add("selected");
+              document.getElementById("tick-en").innerText = "✓";
+          } else {
+              document.getElementById("pick-ne").classList.add("selected");
+              document.getElementById("tick-ne").innerText = "✓";
+          }
+      }
+  
+      function confirmLang() {
+          document.body.classList.remove("lang-en", "lang-ne");
+          document.body.classList.add("lang-" + selectedLang);
+          document.getElementById("lang-overlay").classList.add("hidden");
+          showPage("home");
+      }
+  
+      function showPage(pageId) {
+          // Hide all pages
+          document.querySelectorAll(".page").forEach(p => {
+              p.classList.remove("active");
+          });
+          // Show target page
+          const target = document.getElementById("page-" + pageId);
+          if (target) {
+              target.classList.add("active");
+          }
+          window.scrollTo(0,0);
+      }
+  
+      async function submitQuestion() {
+          const userMessage = document.getElementById("question-input").value;
+          if (!userMessage.trim()) {
+              alert("Please enter a question");
+              return;
+          }
+  
+          const btn = document.getElementById("submit-btn");
+          btn.innerText = "Thinking...";
+  
+          try {
+              const res = await fetch("http://127.0.0.1:5000/chat", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ message: userMessage })
+              });
+  
+              const data = await res.json();
+              document.getElementById("response-area").style.display = "block";
+              document.getElementById("ai-response-text").innerText = data.response;
+          } catch (err) {
+              alert("Error connecting to server. Make sure your Python Flask API is running!");
+              console.error(err);
+          }
+          btn.innerText = "Get advice";
+      }
+  </script>
+  </body>
+  </html>
