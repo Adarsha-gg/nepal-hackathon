@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CrisisSupportMap } from "@/components/CrisisSupportMap";
+import { getHotlineForTimezone, type Hotline } from "@/lib/crisis-hotlines";
 import { ensureVoicesLoaded, speakBrowserTts } from "@/lib/browser-tts";
 
 function stopSpeech() {
@@ -99,6 +100,7 @@ export default function Home() {
   /** Avoid hydration mismatch: sidebar uses locale time + client-only layout. */
   const [sidebarMounted, setSidebarMounted] = useState(false);
   const [ttsPlayingIndex, setTtsPlayingIndex] = useState<number | null>(null);
+  const [hotline, setHotline] = useState<Hotline | null>(null);
   const [supportMapLoading, setSupportMapLoading] = useState(false);
   const [supportMapError, setSupportMapError] = useState<string | null>(null);
   /** Set after geolocation — map iframe is client-only (no SSR coords). */
@@ -126,6 +128,7 @@ export default function Home() {
       setLangOverlay(false);
     }
     setSidebarMounted(true);
+    setHotline(getHotlineForTimezone());
   }, []);
 
   useEffect(() => {
@@ -145,6 +148,8 @@ export default function Home() {
   }, [messages.length]);
 
   const t = useCallback((en: string, ne: string) => (language === "ne" ? ne : en), [language]);
+
+  const hl = hotline ?? { name: "Crisis Helpline", nameNe: "क्राइसिस हेल्पलाइन", number: "911", numberNe: "९११", tel: "911", country: "" };
 
   const openNearestSupportMap = useCallback(() => {
     setSupportMapError(null);
@@ -258,7 +263,7 @@ export default function Home() {
       const respondRes = await fetch("/api/respond", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: text, language, history: historySnapshot }),
+        body: JSON.stringify({ transcript: text, language, history: historySnapshot, crisisHotline: `${hl.name} ${hl.number}` }),
       });
       if (!respondRes.ok) {
         const err = await respondRes.json().catch(() => ({}));
@@ -738,11 +743,11 @@ export default function Home() {
               <div className="crisis-text">
                 {language === "en" ? (
                   <>
-                    If your child is in danger — <strong>Nepal Helpline: 1166</strong>
+                    If your child is in danger — <strong>{hl.name}: {hl.number}</strong>
                   </>
                 ) : (
                   <>
-                    यदि तपाईंको बच्चा खतरामा छ — <strong>नेपाल हेल्पलाइन: ११६६</strong>
+                    यदि तपाईंको बच्चा खतरामा छ — <strong>{hl.nameNe}: {hl.numberNe}</strong>
                   </>
                 )}
               </div>
@@ -883,10 +888,9 @@ export default function Home() {
                   {t("Your privacy matters", "तपाईंको गोपनीयता महत्त्वपूर्ण छ")}
                 </div>
                 <div className="ask-info-text">
-                  {t(
-                    "This is not a substitute for professional help. If your child is in danger, please call the Nepal Helpline at 1166 immediately.",
-                    "यो पेशेवर सहायताको विकल्प होइन। यदि तपाईंको बच्चा खतरामा छ भने, कृपया तुरुन्तै नेपाल हेल्पलाइन ११६६ मा फोन गर्नुहोस्।"
-                  )}
+                  {language === "en"
+                    ? `This is not a substitute for professional help. If your child is in danger, please call ${hl.name} at ${hl.number} immediately.`
+                    : `यो पेशेवर सहायताको विकल्प होइन। यदि तपाईंको बच्चा खतरामा छ भने, कृपया तुरुन्तै ${hl.nameNe} ${hl.numberNe} मा फोन गर्नुहोस्।`}
                 </div>
               </div>
             </div>
@@ -984,7 +988,7 @@ export default function Home() {
               </div>
             </div>
 
-            <a className="crisis-action" href="tel:1166" style={{ textDecoration: "none", color: "inherit" }}>
+            <a className="crisis-action" href={`tel:${hl.tel}`} style={{ textDecoration: "none", color: "inherit" }}>
               <div className="ca-icon" style={{ background: "var(--red-light)" }}>
                 <svg viewBox="0 0 24 24" style={{ stroke: "var(--red)" }}>
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -992,7 +996,7 @@ export default function Home() {
               </div>
               <div>
                 <div className="ca-title">
-                  {t("Nepal Mental Health Helpline — 1166", "नेपाल मानसिक स्वास्थ्य हेल्पलाइन — ११६६")}
+                  {language === "en" ? `${hl.name} — ${hl.number}` : `${hl.nameNe} — ${hl.numberNe}`}
                 </div>
                 <div className="ca-sub">{t("Free · 24/7 · Confidential", "निःशुल्क · दिनरात · गोपनीय")}</div>
               </div>

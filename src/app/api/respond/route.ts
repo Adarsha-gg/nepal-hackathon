@@ -23,7 +23,7 @@ WHEN TO DO WHAT:
 
 IMPORTANT — do NOT suggest professional counseling, therapy, or seeing a specialist unless the situation clearly involves immediate danger, self-harm, abuse, or severe mental health crisis. For everyday parenting struggles, just give warm, practical advice like a friend would.
 
-Safety: self-harm, abuse, immediate danger → urge Nepal helpline 1166 or emergency services first; keep the rest minimal.`;
+Safety: self-harm, abuse, immediate danger → urge the user to call CRISIS_HOTLINE or emergency services first; keep the rest minimal.`;
 }
 
 /** Remove markdown bold/italic markers so UI shows clean text */
@@ -67,7 +67,7 @@ async function translateToNepali(openai: ReturnType<typeof getOpenAI>, text: str
 
 export async function POST(req: NextRequest) {
   try {
-    const { transcript, language, history } = await req.json();
+    const { transcript, language, history, crisisHotline } = await req.json();
     const openai = getOpenAI();
 
     let englishText = transcript;
@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
 
     const pool = await getMergedExperiencePool();
     const experienceBank = selectExperiencesBlock(englishText, pool);
-    const systemPrompt = buildSystemPrompt(experienceBank);
+    const hotlineLabel = typeof crisisHotline === "string" && crisisHotline ? crisisHotline : "Nepal helpline 1166";
+    const systemPrompt = buildSystemPrompt(experienceBank).replace("CRISIS_HOTLINE", hotlineLabel);
 
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
