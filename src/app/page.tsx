@@ -68,34 +68,11 @@ function AssistantReply({
           </span>
           {isPlaying ? stopLabel : listenLabel}
         </button>
-        <span className="tts-hint">
-          {t(
-            "Uses your browser. If no Nepali voice is installed, Hindi may be used to read Nepali text.",
-            "ब्राउजरको आवाज। नेपाली आवाज नभए हिन्दी आवाजले पढ्न सक्छ।"
-          )}
-        </span>
       </div>
     </>
   );
 }
 
-const TOPICS = [
-  { key: "study", en: "Study", ne: "पढाइ" },
-  { key: "anger", en: "Anger", ne: "रिसाहा" },
-  { key: "phone", en: "Phone use", ne: "फोन लत" },
-  { key: "friends", en: "Friends", ne: "साथी" },
-  { key: "interest", en: "Interests", ne: "रुचि" },
-  { key: "confidence", en: "Confidence", ne: "आत्मविश्वास" },
-] as const;
-
-const TOPIC_SNIPPETS: Record<string, { en: string; ne: string }> = {
-  study: { en: "My child won't focus on studies. ", ne: "मेरो बच्चा पढाइमा ध्यान दिँदैन। " },
-  anger: { en: "My child gets angry easily. ", ne: "मेरो बच्चा धेरै रिसाउँछ। " },
-  phone: { en: "My child spends too much time on the phone. ", ne: "मेरो बच्चा फोनमा धेरै समय बिताउँछ। " },
-  friends: { en: "My child spends too much time with friends. ", ne: "मेरो बच्चा साथीहरूसँग धेरै समय बिताउँछ। " },
-  interest: { en: "My child has different interests than I expected. ", ne: "मेरो बच्चाको रुचि अलग छ। " },
-  confidence: { en: "My child lacks confidence. ", ne: "मेरो बच्चामा आत्मविश्वास कम छ। " },
-};
 
 const LS_LANG_OK = "aadhar-lang-ok";
 
@@ -117,7 +94,6 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [inputShake, setInputShake] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [activeChips, setActiveChips] = useState<Set<string>>(new Set());
   const [saveFlash, setSaveFlash] = useState(false);
   const [savedAdvice, setSavedAdvice] = useState<SavedAdviceItem[]>([]);
   /** Avoid hydration mismatch: sidebar uses locale time + client-only layout. */
@@ -391,7 +367,6 @@ export default function Home() {
       };
       setMessages((prev) => [...prev, assistantMessage]);
       setInput("");
-      setActiveChips(new Set());
       setStatus("");
     } catch {
       setMessages((prev) => prev.slice(0, -1));
@@ -407,26 +382,9 @@ export default function Home() {
     setTtsPlayingIndex(null);
     setMessages([]);
     setInput("");
-    setActiveChips(new Set());
     setStatus("");
   };
 
-  const toggleChip = (key: string) => {
-    setActiveChips((prev) => {
-      const next = new Set(prev);
-      const adding = !next.has(key);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      if (adding) {
-        const snippet = TOPIC_SNIPPETS[key];
-        if (snippet) {
-          const line = language === "ne" ? snippet.ne : snippet.en;
-          queueMicrotask(() => setInput((v) => (v.includes(line.trim()) ? v : v + line)));
-        }
-      }
-      return next;
-    });
-  };
 
   const confirmLangOverlay = () => {
     setLanguage(overlayPick);
@@ -847,23 +805,6 @@ export default function Home() {
                     language === "ne" ? "यहाँ आफ्नो प्रश्न लेख्नुहोस्..." : "Type your question here..."
                   }
                 />
-              </div>
-              <div>
-                <div className="ask-label" style={{ marginBottom: 8 }}>
-                  {t("Or pick a topic", "वा विषय छान्नुहोस्")}
-                </div>
-                <div className="topic-chips">
-                  {TOPICS.map(({ key, en, ne }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={`chip${activeChips.has(key) ? " active" : ""}`}
-                      onClick={() => toggleChip(key)}
-                    >
-                      {t(en, ne)}
-                    </button>
-                  ))}
-                </div>
               </div>
               <button
                 type="button"
