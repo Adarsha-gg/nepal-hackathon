@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
 import { selectExperiencesBlock } from "@/data/nepali-family-experiences";
 import { getMergedExperiencePool } from "@/lib/reddit-experiences";
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+import { CHAT_MODEL, getOpenAI } from "@/lib/openai-client";
 
 function buildSystemPrompt(experienceBank: string): string {
   return `You are a culturally aware helper for Nepali parents worried about their kids. Write like a warm, real conversation—like a friend at chai, not a form or a report.
@@ -35,9 +33,9 @@ function stripMarkdownDecorators(s: string): string {
     .trim();
 }
 
-async function translateToEnglish(text: string) {
-  const res = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+async function translateToEnglish(openai: ReturnType<typeof getOpenAI>, text: string) {
+  const res = await openai.chat.completions.create({
+    model: CHAT_MODEL,
     messages: [
       {
         role: "system",
@@ -47,12 +45,12 @@ async function translateToEnglish(text: string) {
       { role: "user", content: text },
     ],
   });
-  return res.choices[0]?.message?.content || text;
+  return res.choices[0]?.message?.content?.trim() || text;
 }
 
-async function translateToNepali(text: string) {
-  const res = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+async function translateToNepali(openai: ReturnType<typeof getOpenAI>, text: string) {
+  const res = await openai.chat.completions.create({
+    model: CHAT_MODEL,
     messages: [
       {
         role: "system",
@@ -62,50 +60,56 @@ async function translateToNepali(text: string) {
       { role: "user", content: text },
     ],
   });
-  return res.choices[0]?.message?.content || text;
+  return res.choices[0]?.message?.content?.trim() || text;
 }
 
 export async function POST(req: NextRequest) {
-  const { transcript, language, history } = await req.json();
+  try {
+    const { transcript, language, history } = await req.json();
+    const openai = getOpenAI();
 
-  let englishText = transcript;
-  if (language === "ne") {
-    englishText = await translateToEnglish(transcript);
-  }
-
-  const pool = await getMergedExperiencePool();
-  const experienceBank = selectExperiencesBlock(englishText, pool);
-  const systemPrompt = buildSystemPrompt(experienceBank);
-
-  const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-    { role: "system", content: systemPrompt },
-  ];
-
-  if (history && history.length > 0) {
-    for (const msg of history) {
-      messages.push({ role: msg.role, content: msg.content });
+    let englishText = transcript;
+    if (language === "ne") {
+      englishText = await translateToEnglish(openai, transcript);
     }
+
+    const pool = await getMergedExperiencePool();
+    const experienceBank = selectExperiencesBlock(englishText, pool);
+    const systemPrompt = buildSystemPrompt(experienceBank);
+
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt },
+    ];
+
+    if (history && history.length > 0) {
+      for (const msg of history as { role: "user" | "assistant"; content: string }[]) {
+        messages.push({ role: msg.role, content: msg.content });
+      }
+    }
+
+    messages.push({ role: "user", content: englishText });
+
+    const response = await openai.chat.completions.create({
+      model: CHAT_MODEL,
+      messages,
+    });
+
+    let aiResponse = response.choices[0]?.message?.content || "Sorry, something went wrong.";
+    aiResponse = stripMarkdownDecorators(aiResponse);
+
+    let nepaliResponse: string | null = null;
+    if (language === "ne") {
+      nepaliResponse = stripMarkdownDecorators(await translateToNepali(openai, aiResponse));
+    }
+
+    return NextResponse.json({
+      response: aiResponse,
+      nepaliResponse,
+      englishInput: englishText,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Request failed";
+    const status = message.includes("OPENAI_API_KEY") ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
-
-  messages.push({ role: "user", content: englishText });
-
-  const response = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages,
-  });
-
-  let aiResponse =
-    response.choices[0]?.message?.content || "Sorry, something went wrong.";
-  aiResponse = stripMarkdownDecorators(aiResponse);
-
-  let nepaliResponse: string | null = null;
-  if (language === "ne") {
-    nepaliResponse = stripMarkdownDecorators(await translateToNepali(aiResponse));
-  }
-
-  return NextResponse.json({
-    response: aiResponse,
-    nepaliResponse,
-    englishInput: englishText,
-  });
 }

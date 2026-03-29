@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ensureVoicesLoaded, speakBrowserTts } from "@/lib/browser-tts";
 
 function stopSpeech() {
   if (typeof window !== "undefined") window.speechSynthesis?.cancel();
@@ -55,7 +56,12 @@ function AssistantReply({
           </span>
           {isPlaying ? stopLabel : listenLabel}
         </button>
-        <span className="tts-hint">{t("Uses your browser voice", "ब्राउजरको आवाज प्रयोग गर्छ")}</span>
+        <span className="tts-hint">
+          {t(
+            "Uses your browser. If no Nepali voice is installed, Hindi may be used to read Nepali text.",
+            "ब्राउजरको आवाज। नेपाली आवाज नभए हिन्दी आवाजले पढ्न सक्छ।"
+          )}
+        </span>
       </div>
     </>
   );
@@ -105,15 +111,22 @@ export default function Home() {
   /** Avoid hydration mismatch: sidebar uses locale time + client-only layout. */
   const [sidebarMounted, setSidebarMounted] = useState(false);
   const [ttsPlayingIndex, setTtsPlayingIndex] = useState<number | null>(null);
+  const [supportMapLoading, setSupportMapLoading] = useState(false);
+  const [supportMapError, setSupportMapError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const messagesRef = useRef<Message[]>([]);
   const responseRef = useRef<HTMLDivElement | null>(null);
+  const ttsPendingRef = useRef<number | null>(null);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    void ensureVoicesLoaded();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem(LS_LANG_OK)) {
@@ -128,6 +141,7 @@ export default function Home() {
 
   useEffect(() => {
     stopSpeech();
+    ttsPendingRef.current = null;
     setTtsPlayingIndex(null);
   }, [language]);
 
@@ -139,38 +153,63 @@ export default function Home() {
 
   const t = useCallback((en: string, ne: string) => (language === "ne" ? ne : en), [language]);
 
+  const openNearestSupportMap = useCallback(() => {
+    setSupportMapError(null);
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setSupportMapError(
+        t("Location is not available in this browser.", "यो ब्राउजरमा स्थान उपलब्ध छैन।")
+      );
+      return;
+    }
+    setSupportMapLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const query = encodeURIComponent("mental health crisis support");
+        const url = `https://www.google.com/maps/search/${query}/@${lat},${lng},13z`;
+        window.open(url, "_blank", "noopener,noreferrer");
+        setSupportMapLoading(false);
+      },
+      () => {
+        setSupportMapLoading(false);
+        setSupportMapError(
+          t(
+            "Location permission is needed to show centres near you. You can search “mental health crisis support” in Maps instead.",
+            "नजिकको केन्द्र देखाउन स्थान अनुमति चाहिन्छ। नक्सामा “mental health crisis support” खोज्न पनि सक्नुहुन्छ।"
+          )
+        );
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 120000 }
+    );
+  }, [t]);
+
   const toggleReplySpeech = useCallback(
-    (index: number, displayText: string) => {
+    async (index: number, displayText: string) => {
       if (typeof window === "undefined" || !window.speechSynthesis) return;
       if (ttsPlayingIndex === index) {
         stopSpeech();
+        ttsPendingRef.current = null;
         setTtsPlayingIndex(null);
         return;
       }
       stopSpeech();
-      const u = new SpeechSynthesisUtterance(displayText);
-      u.lang = language === "ne" ? "ne-NP" : "en-US";
-      u.rate = 0.92;
-      const applyVoice = () => {
-        const voices = window.speechSynthesis.getVoices();
-        if (language === "ne") {
-          const v = voices.find((vo) => vo.lang.startsWith("ne") || /nepal/i.test(vo.name));
-          if (v) u.voice = v;
-        } else {
-          const v =
-            voices.find((vo) => vo.lang.startsWith("en-US")) ||
-            voices.find((vo) => vo.lang.startsWith("en"));
-          if (v) u.voice = v;
-        }
-      };
-      applyVoice();
-      if (window.speechSynthesis.getVoices().length === 0) {
-        window.speechSynthesis.addEventListener("voiceschanged", applyVoice, { once: true });
-      }
-      u.onend = () => setTtsPlayingIndex(null);
-      u.onerror = () => setTtsPlayingIndex(null);
-      window.speechSynthesis.speak(u);
+      ttsPendingRef.current = index;
       setTtsPlayingIndex(index);
+      await ensureVoicesLoaded();
+      if (ttsPendingRef.current !== index) return;
+      const lang = language === "ne" ? "ne" : "en";
+      speakBrowserTts(
+        displayText,
+        lang,
+        () => {
+          setTtsPlayingIndex(null);
+          ttsPendingRef.current = null;
+        },
+        () => {
+          setTtsPlayingIndex(null);
+          ttsPendingRef.current = null;
+        }
+      );
     },
     [language, ttsPlayingIndex]
   );
@@ -200,7 +239,11 @@ export default function Home() {
     const transcribeRes = await fetch("/api/transcribe", { method: "POST", body: formData });
     const transcribeData = await transcribeRes.json();
     if (!transcribeRes.ok) {
-      setStatus(t("Couldn't transcribe. Try again.", "ट्रान्सक्रिप्ट हुन सकेन। फेरि प्रयास गर्नुहोस्।"));
+      const errMsg = (transcribeData as { error?: string }).error;
+      setStatus(
+        errMsg ||
+          t("Couldn't transcribe. Try again.", "ट्रान्सक्रिप्ट हुन सकेन। फेरि प्रयास गर्नुहोस्।")
+      );
       setIsProcessing(false);
       return;
     }
@@ -233,20 +276,28 @@ export default function Home() {
   };
 
   const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-    mediaRecorderRef.current = mediaRecorder;
-    chunksRef.current = [];
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
-    mediaRecorder.onstop = async () => {
-      stream.getTracks().forEach((track) => track.stop());
-      await processAudio(new Blob(chunksRef.current, { type: "audio/webm" }));
-    };
-    mediaRecorder.start();
-    setIsRecording(true);
-    setStatus(t("Listening… tap stop when done.", "सुन्दै… सकिएपछि रोक्नुहोस्।"));
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        await processAudio(blob);
+      };
+      mediaRecorder.start();
+      setIsRecording(true);
+      setStatus(t("Listening… tap stop when done.", "सुन्दै… सकिएपछि रोक्नुहोस्।"));
+    } catch {
+      setStatus(t("Allow microphone access to use voice.", "आवाजका लागि माइक अनुमति दिनुहोस्।"));
+    }
   };
 
   const stopRecording = () => {
@@ -289,6 +340,7 @@ export default function Home() {
 
   const resetAsk = () => {
     stopSpeech();
+    ttsPendingRef.current = null;
     setTtsPlayingIndex(null);
     setMessages([]);
     setInput("");
@@ -853,12 +905,12 @@ export default function Home() {
               <aside className="ask-sidebar" aria-label={t("Saved advice", "सुरक्षित सल्लाह")}>
                 <div className="saved-panel">
                   <div className="saved-panel-title">
-                    {t("Saved advice (demo)", "सुरक्षित सल्लाह (डेमो)")}
+                    {t("Saved advice", "सुरक्षित सल्लाह")}
                   </div>
                   <p className="saved-panel-note">
                     {t(
-                      "Shown here for the demo only — not stored on a server.",
-                      "डेमोका लागि मात्र यहाँ देखाइन्छ — सर्वरमा बन्दैन।"
+                      "Kept in this browser for this session — not sent to our servers.",
+                      "यस ब्राउजरमा मात्र — हाम्रो सर्वरमा पठाइँदैन।"
                     )}
                   </p>
                   {savedAdvice.length === 0 ? (
@@ -978,22 +1030,64 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="crisis-action">
-              <div className="ca-icon" style={{ background: "var(--sage-light)" }}>
-                <svg viewBox="0 0 24 24" style={{ stroke: "var(--sage)" }}>
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
+            <div>
+              {/* div+role="button": <button> cannot contain <div> (invalid HTML → hydration mismatch) */}
+              <div
+                role="button"
+                tabIndex={supportMapLoading ? -1 : 0}
+                className="crisis-action"
+                aria-busy={supportMapLoading}
+                aria-disabled={supportMapLoading}
+                onClick={() => {
+                  if (!supportMapLoading) openNearestSupportMap();
+                }}
+                onKeyDown={(e) => {
+                  if (supportMapLoading) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openNearestSupportMap();
+                  }
+                }}
+                style={{ width: "100%" }}
+              >
+                <div className="ca-icon" style={{ background: "var(--sage-light)" }}>
+                  <svg viewBox="0 0 24 24" style={{ stroke: "var(--sage)" }}>
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="ca-title">
+                    {supportMapLoading
+                      ? t("Getting your location…", "स्थान लिँदै…")
+                      : t("Find nearest support centre", "नजिकको सहायता केन्द्र खोज्नुहोस्")}
+                  </div>
+                  <div className="ca-sub">
+                    {t(
+                      "Uses your location · Opens Maps near you (worldwide)",
+                      "तपाईंको स्थान प्रयोग गर्छ · नक्सामा नजिक खोल्छ (विश्वभरि)"
+                    )}
+                  </div>
+                </div>
+                <div className="ca-arrow">
+                  <svg viewBox="0 0 24 24">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
               </div>
-              <div>
-                <div className="ca-title">{t("Find nearest support centre", "नजिकको सहायता केन्द्र खोज्नुहोस्")}</div>
-                <div className="ca-sub">{t("Across Nepal · Walk-in welcome", "नेपालभर · सोझै आउन सकिन्छ")}</div>
-              </div>
-              <div className="ca-arrow">
-                <svg viewBox="0 0 24 24">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </div>
+              {supportMapError ? (
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "var(--muted)",
+                    margin: "-4px 0 12px",
+                    lineHeight: 1.5,
+                    paddingLeft: 4,
+                  }}
+                >
+                  {supportMapError}
+                </p>
+              ) : null}
             </div>
 
             <div className="crisis-divider">

@@ -1,6 +1,6 @@
 # nepali-hackathon (Mero Bachcha)
 
-Culturally aware support for Nepali parents: voice and text questions, powered by [Next.js](https://nextjs.org) and Groq (Whisper + Llama).
+Culturally aware support for Nepali parents: voice and text questions, powered by [Next.js](https://nextjs.org), OpenAI (GPT + Whisper).
 
 ## Getting started
 
@@ -16,8 +16,10 @@ Open [http://localhost:3000](http://localhost:3000).
 Create `.env.local` with:
 
 ```bash
-GROQ_API_KEY=your_key_here
+OPENAI_API_KEY=your_key_here
 ```
+
+Create a key in the [OpenAI dashboard](https://platform.openai.com/api-keys). Optional: set `OPENAI_CHAT_MODEL` (default `gpt-4o-mini`).
 
 ## Scripts
 
