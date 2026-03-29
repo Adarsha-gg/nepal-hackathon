@@ -1,0 +1,98 @@
+[
+  {
+    "id": "prefill-1qpx0hu",
+    "source": "r/Nepal",
+    "pattern": "A family shared: a maternal uncle developed serious mental health problems while he was a Master’s student; he has been on psychiatric medication for many years. Relatives worry about his future as parents age and how the family will support him long term.",
+    "keywords": ["uncle", "family", "mental", "medication", "student", "parents", "support", "future", "years"]
+  },
+  {
+    "id": "prefill-1ngofh1",
+    "source": "r/Nepal",
+    "pattern": "A young adult wrote: after heartbreak they felt sad, but their mother kept nagging harshly and cursing; they felt mentally exhausted and suicidal thoughts appeared. (If you are in crisis, contact Nepal Helpline 1166 or local emergency services.)",
+    "keywords": ["mother", "sad", "family", "mental", "suicidal", "nagging", "tired", "heartbreak", "curse"]
+  },
+  {
+    "id": "prefill-1rxof6o",
+    "source": "r/Nepal",
+    "pattern": "Poster asked why it is so hard to deal with Nepali parents: they try to honour parents’ wishes and care for them as they age, but feel behind relatives in career after delays and mistakes—and the emotional weight is heavy.",
+    "keywords": ["parents", "nepali", "career", "relatives", "old", "responsible", "mistakes", "delay"]
+  },
+  {
+    "id": "prefill-1mlp1nn",
+    "source": "r/Nepal",
+    "pattern": "A doctor gave up a full MD scholarship seat in Nepal because of mental health struggles; relatives questioned the decision loudly and offered unsolicited advice—the poster said the last months were the hardest.",
+    "keywords": ["scholarship", "mental", "health", "doctor", "relatives", "advice", "pressure", "decision"]
+  },
+  {
+    "id": "prefill-1s62t52",
+    "source": "r/Nepal",
+    "pattern": "Someone wrote that many Nepalis act like everything is fine while struggling inside—you can smile and talk normally even when nothing inside feels okay; stigma hides what is really going on.",
+    "keywords": ["mental", "health", "struggle", "fine", "stigma", "smile", "inside"]
+  },
+  {
+    "id": "prefill-1rqwlad",
+    "source": "r/Nepal",
+    "pattern": "A woman described living with manipulative extended family (big mother) for decades: jealousy toward her biological parents, negativity, and stress affecting the whole household’s mental health.",
+    "keywords": ["family", "manipulative", "mother", "father", "household", "stress", "jealous", "years"]
+  },
+  {
+    "id": "prefill-1rtkenw",
+    "source": "r/Nepal",
+    "pattern": "A first-time poster said many things piled up at once—they feel mentally stuck, usually handle problems alone, but personal issues now make it hard to think clearly.",
+    "keywords": ["stuck", "mental", "advice", "problems", "alone", "personal", "tired"]
+  },
+  {
+    "id": "prefill-1n5ples",
+    "source": "r/Nepal",
+    "pattern": "A Nepali in the USA wrote about layoff and interview stress—job loss hit their mental health and they felt pressure to “crack” the final interview by any means.",
+    "keywords": ["usa", "job", "layoff", "interview", "mental", "pressure", "work"]
+  },
+  {
+    "id": "prefill-1qup4b5",
+    "source": "r/Nepal",
+    "pattern": "Someone described a 21-year-old friend taken by parents to a mental hospital who then went silent—background included emotional abuse at home and police involvement; the situation felt unsafe and confusing.",
+    "keywords": ["parents", "hospital", "mental", "abuse", "police", "family", "silent", "friend"]
+  },
+  {
+    "id": "prefill-1lkv39l",
+    "source": "r/Nepal",
+    "pattern": "Poster noted TikTok and reels about losing loved ones to depression in Nepal—people rarely feel free to talk about mental health openly, and they wished for better awareness platforms.",
+    "keywords": ["depression", "nepal", "awareness", "family", "friends", "talk", "mental"]
+  },
+  {
+    "id": "prefill-1pby8gr",
+    "source": "r/Nepal",
+    "pattern": "A man asked whether Nepali men abroad can really open up to male friends—man-to-man listening and understanding feelings—without judgement.",
+    "keywords": ["men", "abroad", "friends", "talk", "feelings", "express", "nepali"]
+  },
+  {
+    "id": "prefill-1miawkg",
+    "source": "r/Nepal",
+    "pattern": "Someone went through major depression with self-harm thoughts, shut down social media and their phone; their best friend reached out via the poster’s sister because they could not share struggles directly.",
+    "keywords": ["depression", "friend", "sister", "harm", "social", "shut", "struggle", "mental"]
+  },
+  {
+    "id": "prefill-1jubcal",
+    "source": "r/Nepal",
+    "pattern": "A poster’s therapist recommended inpatient care after a crisis, but parents emotionally blackmailed them to stay home instead of being admitted— they did not know what to do.",
+    "keywords": ["parents", "therapy", "hospital", "mental", "blackmail", "home", "admit", "therapist"]
+  },
+  {
+    "id": "prefill-1oha9b5",
+    "source": "r/Nepal",
+    "pattern": "A community member warned that mental health and rehab centres in Nepal often lack proper regulation—ranging from taking money without care to worse outcomes including abuse.",
+    "keywords": ["mental", "health", "nepal", "centre", "rehab", "regulation", "money", "abuse"]
+  },
+  {
+    "id": "prefill-1ncr4fq",
+    "source": "r/Nepal",
+    "pattern": "During political turmoil, volunteers shared links to free online counselling and mental health support so people would not suffer alone.",
+    "keywords": ["counselling", "mental", "support", "online", "free", "help", "turmoil"]
+  },
+  {
+    "id": "prefill-1q03ne5",
+    "source": "r/Nepal",
+    "pattern": "A 19-year-old described a parent’s accident and police follow-up—fear and family stress piled up fast after a drunk-driver incident, on top of feeling a breakdown.",
+    "keywords": ["dad", "father", "accident", "police", "family", "fear", "breakdown", "stress"]
+  }
+]
