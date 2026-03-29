@@ -1,8 +1,0 @@
-sounddevice
-scipy
-SpeechRecognition
-google-genai
-gTTS
-pygame
-python-dotenv
-flask
