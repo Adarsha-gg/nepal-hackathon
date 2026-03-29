@@ -559,7 +559,7 @@ export default function Home() {
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                 </span>
-                {t("Free · Private · For Nepali families", "निःशुल्क · गोपनीय · नेपाली परिवारका लागि")}
+                {t("Free · Private · For families", "निःशुल्क · गोपनीय · परिवारका लागि")}
               </div>
               <div className="hero-title">{t("Understand your child, gently.", "आफ्नो बच्चालाई बुझ्नुहोस्।")}</div>
               <p className="hero-desc">
@@ -707,8 +707,8 @@ export default function Home() {
                 <div className="trust-title">{t("Culturally aware", "सांस्कृतिक रूपमा सचेत")}</div>
                 <div className="trust-desc">
                   {t(
-                    "Advice respects Nepali family values, traditions, and parenting norms.",
-                    "सल्लाह नेपाली पारिवारिक मूल्य र परम्परालाई सम्मान गर्छ।"
+                    "Advice respects family values, traditions, and parenting norms.",
+                    "सल्लाह पारिवारिक मूल्य र परम्परालाई सम्मान गर्छ।"
                   )}
                 </div>
               </div>
