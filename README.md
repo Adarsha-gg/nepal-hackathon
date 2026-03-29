@@ -1,4 +1,4 @@
-# nepali-hackathon (Mero Bachcha)
+# Aadhar — आधार
 
 Culturally aware support for Nepali parents: voice and text questions, powered by [Next.js](https://nextjs.org), OpenAI (GPT + Whisper).
 

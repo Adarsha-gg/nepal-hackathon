@@ -1,10 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CrisisSupportMap } from "@/components/CrisisSupportMap";
 import { ensureVoicesLoaded, speakBrowserTts } from "@/lib/browser-tts";
 
 function stopSpeech() {
   if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+}
+
+/** Shared ref so cleanup helpers can stop server-side TTS audio too. */
+let _ttsAudio: HTMLAudioElement | null = null;
+function stopAllAudio() {
+  stopSpeech();
+  if (_ttsAudio) {
+    _ttsAudio.pause();
+    _ttsAudio.src = "";
+    _ttsAudio = null;
+  }
 }
 
 interface Message {
@@ -85,7 +97,7 @@ const TOPIC_SNIPPETS: Record<string, { en: string; ne: string }> = {
   confidence: { en: "My child lacks confidence. ", ne: "मेरो बच्चामा आत्मविश्वास कम छ। " },
 };
 
-const LS_LANG_OK = "mero-bachcha-lang-ok";
+const LS_LANG_OK = "aadhar-lang-ok";
 
 type SavedAdviceItem = {
   id: string;
@@ -113,6 +125,11 @@ export default function Home() {
   const [ttsPlayingIndex, setTtsPlayingIndex] = useState<number | null>(null);
   const [supportMapLoading, setSupportMapLoading] = useState(false);
   const [supportMapError, setSupportMapError] = useState<string | null>(null);
+  /** Set after geolocation — map iframe is client-only (no SSR coords). */
+  const [supportMapCoords, setSupportMapCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [nearbyPlace, setNearbyPlace] = useState<{ name: string; lat: string; lon: string } | null>(null);
+  const [nearbyPlaceLoading, setNearbyPlaceLoading] = useState(false);
+  const crisisMapAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -136,11 +153,11 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    return () => stopSpeech();
+    return () => stopAllAudio();
   }, []);
 
   useEffect(() => {
-    stopSpeech();
+    stopAllAudio();
     ttsPendingRef.current = null;
     setTtsPlayingIndex(null);
   }, [language]);
@@ -164,18 +181,20 @@ export default function Home() {
     setSupportMapLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        const query = encodeURIComponent("mental health crisis support");
-        const url = `https://www.google.com/maps/search/${query}/@${lat},${lng},13z`;
-        window.open(url, "_blank", "noopener,noreferrer");
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setSupportMapCoords({ lat, lng });
         setSupportMapLoading(false);
+        queueMicrotask(() => {
+          crisisMapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
       },
       () => {
         setSupportMapLoading(false);
         setSupportMapError(
           t(
-            "Location permission is needed to show centres near you. You can search “mental health crisis support” in Maps instead.",
-            "नजिकको केन्द्र देखाउन स्थान अनुमति चाहिन्छ। नक्सामा “mental health crisis support” खोज्न पनि सक्नुहुन्छ।"
+            "Location permission is needed to show the map near you.",
+            "नजिकको नक्सा देखाउन स्थान अनुमति चाहिन्छ।"
           )
         );
       },
@@ -183,33 +202,77 @@ export default function Home() {
     );
   }, [t]);
 
+  useLayoutEffect(() => {
+    if (!supportMapCoords) {
+      setNearbyPlace(null);
+      setNearbyPlaceLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setNearbyPlace(null);
+    setNearbyPlaceLoading(true);
+    const q = new URLSearchParams({
+      lat: String(supportMapCoords.lat),
+      lng: String(supportMapCoords.lng),
+    });
+    void fetch(`/api/nearby-places?${q}`)
+      .then((r) => r.json() as Promise<{ place?: { name: string; lat: string; lon: string } | null }>)
+      .then((data) => {
+        if (!cancelled) setNearbyPlace(data.place && data.place.name ? data.place : null);
+      })
+      .catch(() => {
+        if (!cancelled) setNearbyPlace(null);
+      })
+      .finally(() => {
+        if (!cancelled) setNearbyPlaceLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [supportMapCoords]);
+
   const toggleReplySpeech = useCallback(
     async (index: number, displayText: string) => {
-      if (typeof window === "undefined" || !window.speechSynthesis) return;
+      if (typeof window === "undefined") return;
       if (ttsPlayingIndex === index) {
-        stopSpeech();
+        stopAllAudio();
         ttsPendingRef.current = null;
         setTtsPlayingIndex(null);
         return;
       }
-      stopSpeech();
+      stopAllAudio();
       ttsPendingRef.current = index;
       setTtsPlayingIndex(index);
-      await ensureVoicesLoaded();
-      if (ttsPendingRef.current !== index) return;
-      const lang = language === "ne" ? "ne" : "en";
-      speakBrowserTts(
-        displayText,
-        lang,
-        () => {
-          setTtsPlayingIndex(null);
-          ttsPendingRef.current = null;
-        },
-        () => {
-          setTtsPlayingIndex(null);
-          ttsPendingRef.current = null;
+
+      const done = () => {
+        setTtsPlayingIndex(null);
+        ttsPendingRef.current = null;
+      };
+
+      if (language === "ne") {
+        try {
+          const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: displayText }),
+          });
+          if (ttsPendingRef.current !== index) return;
+          if (!res.ok) { done(); return; }
+          const blob = await res.blob();
+          if (ttsPendingRef.current !== index) return;
+          const audio = new Audio(URL.createObjectURL(blob));
+          _ttsAudio = audio;
+          audio.onended = done;
+          audio.onerror = done;
+          audio.play();
+        } catch {
+          done();
         }
-      );
+      } else {
+        await ensureVoicesLoaded();
+        if (ttsPendingRef.current !== index) return;
+        speakBrowserTts(displayText, "en", done, done);
+      }
     },
     [language, ttsPlayingIndex]
   );
@@ -339,7 +402,7 @@ export default function Home() {
   };
 
   const resetAsk = () => {
-    stopSpeech();
+    stopAllAudio();
     ttsPendingRef.current = null;
     setTtsPlayingIndex(null);
     setMessages([]);
@@ -440,8 +503,8 @@ export default function Home() {
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
           </div>
-          <div className="lp-name">Mero Bachcha</div>
-          <div className="lp-ne">मेरो बच्चा</div>
+          <div className="lp-name">Aadhar</div>
+          <div className="lp-ne">आधार</div>
           <div className="lp-tagline">
             A safe space for Nepali parents to understand
             <br />
@@ -485,7 +548,7 @@ export default function Home() {
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
             </div>
-            <div className="nav-logo-text">Mero Bachcha</div>
+            <div className="nav-logo-text">Aadhar</div>
           </button>
           <div className="nav-links">
             <button type="button" onClick={() => showPage("home")}>
@@ -553,52 +616,38 @@ export default function Home() {
             </div>
             <div className="hero-visual">
               <div className="hero-card">
-                <div className="hv-question">
-                  <div className="hv-question-label">
-                    <span className="icon">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      </svg>
-                    </span>
-                    {t("Parent asks", "अभिभावकको प्रश्न")}
+                <div className="hv-bubble hv-bubble--user">
+                  <div className="hv-avatar hv-avatar--user">
+                    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                   </div>
-                  <div className="hv-question-text">
-                    {t(
-                      '"My son doesn\'t focus on studies, only on sport..."',
-                      '"मेरो छोरा पढाइमा ध्यान दिँदैन, खेलमा मात्र छ..."'
-                    )}
+                  <div className="hv-bubble-body">
+                    <span className="hv-sender">{t("You", "तपाईं")}</span>
+                    <p className="hv-msg">
+                      {t(
+                        "My son doesn\u2019t focus on studies at all, he only wants to play sports. I don\u2019t know what to do anymore.",
+                        "मेरो छोरा पढाइमा ध्यान दिँदैन, खेलमा मात्र छ। अब के गर्ने थाहा छैन।"
+                      )}
+                    </p>
                   </div>
                 </div>
-                <div className="hv-answer">
-                  <div className="hv-answer-label">
-                    <span className="icon">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                      </svg>
-                    </span>
-                    {t("Gentle advice", "सहज सल्लाह")}
+                <div className="hv-bubble hv-bubble--ai">
+                  <div className="hv-avatar hv-avatar--ai">
+                    <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
                   </div>
-                  <div className="hv-answer-text">
-                    {t(
-                      "He's not avoiding you — he needs space to grow. Sport builds discipline, teamwork, and resilience. Listen before advising.",
-                      "उनको खेलमा रुचि छ — सम्झाउनुको सट्टा सुन्नुहोस्। विश्वास बढाउनुहोस्।"
-                    )}
-                  </div>
-                </div>
-                <div className="hv-tip">
-                  <div className="hv-tip-label">
-                    <span className="icon">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
-                    </span>
-                    {t("Try this", "यो गर्नुहोस्")}
-                  </div>
-                  <div className="hv-tip-text">
-                    {t(
-                      "Ask about his sport without criticism. This builds trust for study conversations later.",
-                      "उनको खेलबारे सोध्नुहोस् — आलोचना नगरी। यसले विश्वास बढाउँछ।"
-                    )}
+                  <div className="hv-bubble-body">
+                    <span className="hv-sender">{t("Aadhar", "आधार")}</span>
+                    <p className="hv-msg">
+                      {t(
+                        "That\u2019s a really common worry. Sports actually teach discipline, teamwork, and focus \u2014 skills that help with studies too. A parent once shared something similar and found that just sitting at his practice once changed the whole dynamic.",
+                        "यो धेरै सामान्य चिन्ता हो। खेलले अनुशासन, सहकार्य र एकाग्रता सिकाउँछ \u2014 पढाइमा पनि मद्दत गर्ने कुराहरू। एक अभिभावकले एकपल्ट उनको अभ्यासमा बसेपछि सम्बन्ध नै बदलियो भनेका थिए।"
+                      )}
+                    </p>
+                    <p className="hv-msg hv-msg--action">
+                      {t(
+                        "Try asking him about his game today \u2014 no criticism, just curiosity. That small step builds trust.",
+                        "आज उसको खेलबारे सोध्नुहोस् \u2014 आलोचना नगरी, जिज्ञासाले। त्यो सानो कदमले विश्वास बढाउँछ।"
+                      )}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1030,63 +1079,99 @@ export default function Home() {
               </div>
             </div>
 
-            <div>
-              {/* div+role="button": <button> cannot contain <div> (invalid HTML → hydration mismatch) */}
-              <div
-                role="button"
-                tabIndex={supportMapLoading ? -1 : 0}
+            <div ref={crisisMapAnchorRef}>
+              <button
+                type="button"
                 className="crisis-action"
-                aria-busy={supportMapLoading}
-                aria-disabled={supportMapLoading}
-                onClick={() => {
-                  if (!supportMapLoading) openNearestSupportMap();
-                }}
-                onKeyDown={(e) => {
-                  if (supportMapLoading) return;
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    openNearestSupportMap();
-                  }
-                }}
+                disabled={supportMapLoading}
+                aria-busy={supportMapLoading ? true : undefined}
+                onClick={() => openNearestSupportMap()}
                 style={{ width: "100%" }}
               >
-                <div className="ca-icon" style={{ background: "var(--sage-light)" }}>
+                <span className="ca-icon" style={{ background: "var(--sage-light)" }}>
                   <svg viewBox="0 0 24 24" style={{ stroke: "var(--sage)" }}>
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                     <circle cx="12" cy="10" r="3" />
                   </svg>
-                </div>
-                <div>
-                  <div className="ca-title">
+                </span>
+                <span className="ca-text-col">
+                  <span className="ca-title">
                     {supportMapLoading
                       ? t("Getting your location…", "स्थान लिँदै…")
                       : t("Find nearest support centre", "नजिकको सहायता केन्द्र खोज्नुहोस्")}
-                  </div>
-                  <div className="ca-sub">
+                  </span>
+                  <span className="ca-sub">
                     {t(
-                      "Uses your location · Opens Maps near you (worldwide)",
-                      "तपाईंको स्थान प्रयोग गर्छ · नक्सामा नजिक खोल्छ (विश्वभरि)"
+                      "Uses your location · Map and nearby results below",
+                      "तपाईंको स्थान प्रयोग गर्छ · नक्सा र नजिकका नतिजा तल"
                     )}
-                  </div>
-                </div>
-                <div className="ca-arrow">
+                  </span>
+                </span>
+                <span className="ca-arrow" aria-hidden="true">
                   <svg viewBox="0 0 24 24">
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
-                </div>
-              </div>
+                </span>
+              </button>
               {supportMapError ? (
                 <p
                   style={{
                     fontSize: 12,
                     color: "var(--muted)",
-                    margin: "-4px 0 12px",
+                    margin: "8px 0 0",
                     lineHeight: 1.5,
                     paddingLeft: 4,
                   }}
                 >
                   {supportMapError}
                 </p>
+              ) : null}
+              {supportMapCoords ? (
+                <div className="crisis-map-panel">
+                  <CrisisSupportMap
+                    userLat={supportMapCoords.lat}
+                    userLng={supportMapCoords.lng}
+                    place={nearbyPlace}
+                    labelYou={t("You are here", "तपाईं यहाँ")}
+                    labelSupport={t("Suggested place (OSM)", "सुझाइएको ठाउँ (OSM)")}
+                    openMapsLabel={t("Open in Google Maps", "Google Maps मा खोल्नुहोस्")}
+                  />
+                  {nearbyPlaceLoading ? (
+                    <p className="crisis-map-note">{t("Finding a nearby match…", "नजिकको मिलान खोज्दै…")}</p>
+                  ) : null}
+                  {nearbyPlace ? (
+                    <p className="crisis-map-note crisis-map-note--place">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(nearbyPlace.name)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="crisis-nearby-link"
+                      >
+                        {nearbyPlace.name}
+                      </a>
+                    </p>
+                  ) : null}
+                  <div className="crisis-map-actions">
+                    <a
+                      className="crisis-map-link"
+                      href={`https://www.google.com/maps/search/${encodeURIComponent("mental health crisis support")}/@${supportMapCoords.lat},${supportMapCoords.lng},14z`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {t("Open in Google Maps", "Google Maps मा खोल्नुहोस्")}
+                    </a>
+                    <button
+                      type="button"
+                      className="crisis-map-hide"
+                      onClick={() => {
+                        setSupportMapCoords(null);
+                        setNearbyPlace(null);
+                      }}
+                    >
+                      {t("Hide map", "नक्सा लुकाउनुहोस्")}
+                    </button>
+                  </div>
+                </div>
               ) : null}
             </div>
 
@@ -1097,7 +1182,7 @@ export default function Home() {
             </div>
 
             <button type="button" className="btn-crisis" onClick={() => showPage("ask")}>
-              {t("Talk to Mero Bachcha now", "अहिले Mero Bachcha सँग कुरा गर्नुहोस्")}
+              {t("Talk to Aadhar now", "अहिले आधारसँग कुरा गर्नुहोस्")}
             </button>
           </div>
         </div>
@@ -1106,7 +1191,7 @@ export default function Home() {
       <footer>
         <div className="footer-inner">
           <div>
-            <div className="footer-logo">Mero Bachcha</div>
+            <div className="footer-logo">Aadhar</div>
             <div className="footer-note">
               {t(
                 "Not a substitute for professional mental health services.",

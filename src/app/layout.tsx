@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Devanagari, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import "./mero-bachcha.css";
+import "./aadhar.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -16,7 +16,7 @@ const notoDevanagari = Noto_Sans_Devanagari({
 });
 
 export const metadata: Metadata = {
-  title: "Mero Bachcha",
+  title: "Aadhar — आधार",
   description:
     "A culturally-aware space for Nepali parents to ask questions about their children.",
 };
