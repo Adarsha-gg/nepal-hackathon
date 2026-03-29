@@ -119,6 +119,6 @@ app.py                        # Python prototype (early development)
 
 | Name | Role |
 |------|------|
-| **Adarsha Mishra** | Lead developer — Next.js app, AI integration (OpenAI GPT/Whisper/TTS), crisis map (Leaflet + Overpass), dynamic hotlines, UI/UX implementation |
-| **Abhijit Yadav** | Frontend prototyping — initial HTML/CSS designs and layout |
-| **Anuj Vikram Shah** | Backend prototyping — Python scripts and early API exploration |
+| **Abhijit Yadav** | UI/UX design and frontend — designed and built the full user interface, visual language, page layouts, responsive styling, and the overall look and feel of the app |
+| **Anuj Vikram Shah** | Backend support — Python prototyping and early API exploration |
+| **Adarsha Mishra** | Full-stack integration — Next.js migration, OpenAI API integration (GPT/Whisper/TTS), crisis map (Leaflet + Overpass), dynamic hotlines, deployment |
